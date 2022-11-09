@@ -1,7 +1,7 @@
 # C-CNC-LookAheadProject
 
 ### Aim of the course: 
-We have to write a SW/CNC controller for controlling a 3 axes machine (machine tool) (of the digital twin (simulator) of the machine itself) **
+We have to write a SW/CNC controller for controlling a 3 axes machine (machine tool) (of the digital twin (simulator) of the machine itself).
 This C-program will talk via ZeroMQ to the simulator in Simulink (Simscape Multibody). We had also seen how to deploy this SW into a micro-controller (CROSS-COMPILATION) so how to compile C on our PCs to be run on a different archictecture (i. e. BeagleBone, Raspberry Pi, embedded system, ...) and that micro-controller has been be also connected to the same simulator via ZeroMQ.
 Reagarding the cross-compilation will be used Docker for cross-compiling .exe files able to run on BeagleBone Black.
 
