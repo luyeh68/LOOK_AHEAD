@@ -56,7 +56,7 @@ program_t *program_new(const char *filename) {
 void program_free(program_t *p) {
   assert(p);
   block_t *b, *tmp;
-  // free the linked list of blocks
+  // free the linked list of blocks which is the program itself
   if (p->n > 0) {
     b = p->first;
     do {
@@ -102,7 +102,8 @@ int program_parse(program_t *p, machine_t *cfg) {
   // read the file, one line at a time, and create a new block for
   // each line
   p->n = 0;
-  while ( (line_len = getline(&line, &n, p->file)) >= 0 ) {
+  while ( (line_len = getline(&line, &n, p->file)) >= 0 ) //getline reads one line of the G-code file
+  {
     // remove trailing newline (\n) replacing it with a terminator
     if (line[line_len-1] == '\n') {
       line[line_len-1] = '\0'; 
