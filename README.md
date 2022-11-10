@@ -26,6 +26,9 @@ N.B. For every block the constraints on the velocity profiles were:
   - NO limitation of jerks (derivative of acceleration): dangerous for vibrating behaviours
   - going down to 0 speed at each corner (we cannot follow a corner with constant speed otherwise the required acceleration should be infinity (**mechanically non-feasible**))
 
+We also used the F.S.M APPROACH used for implementing complex logics in controlling HW. 
+F.S.M is a design concept when writing SW where the system we are programming is going to lay (at every time) in a given state or configuration and the possible n° of states is LIMITED / finite.
+
 ------------------------------------------------------------
 # Look-Ahead project:
 
