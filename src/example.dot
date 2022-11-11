@@ -1,0 +1,49 @@
+# EXAMPLE Finite State Machine
+# generate with the command:
+# gv_fsm src/example.dot -o src/_example -k stop
+# NOTE: files beginning with an underscore are not compiled with cmake!
+digraph "Example_FSM" {
+  # List of states
+  init
+  idle
+  run
+  stop
+
+  # List of transitions
+  init -> idle [label=reset]
+  idle -> idle
+  idle -> run
+  run -> run
+  run -> idle [label=reset]
+  idle -> stop
+}
+
+/*
+digraph "Example_FSM" //directed graph
+{
+  # List of states
+  init //initial state when start writing the program
+  idle // system waits for inputs, commands, instructions until something happens effectively
+  run  // when the inputs come in actually and stays in this state until the task has been fully accomplished
+  stop
+
+  # List of transitions/connections
+  init -> idle [label=reset] // to make appear transition function between init and idle: when transition fron init to idle we run reset
+  idle -> idle
+  idle -> run
+  run -> run
+  run -> idle [label=reset] // to make appear transition function between run and idle: before entering back to idle (stop running RUN) we run reset function 
+  idle -> stop
+}
+
+
+/*
+graph {
+  state_a
+  state_b //state
+  state_c
+
+  state_a -- state_b // connection
+  state_a -- state_c
+}
+*/
