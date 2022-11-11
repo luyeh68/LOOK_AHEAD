@@ -12,6 +12,11 @@ The finite state machine has:
   4 transition functions
 Functions and types have been generated with prefix "ccnc_"
 ******************************************************************************/
+// F.S.M APPROACH used for implementing complex logics in controlling HW:
+// F.S.M is a design concept when writing SW where the system we are programming is going to lay (at every time) in a given state or configuration and the possible n° of states is LIMITED / finite.
+// F.S.M is typically represented by a graph: set of balls (states) + arrows(transitions). Only balls connected with an arrow can be switched 
+
+
 
 #include "fsm.h"
 #include "block.h"
@@ -23,7 +28,8 @@ Functions and types have been generated with prefix "ccnc_"
 // SIGINT requests a transition to state stop
 #include <signal.h>
 static int _exit_request = 0;
-static void signal_handler(int signal) {
+static void signal_handler(int signal)  // for catching CRTL+C which exits from permanent states so states with a loop
+{
   if (signal == SIGINT) {
     _exit_request = 1;
   }
@@ -73,23 +79,32 @@ transition_func_t *const ccnc_transition_table[CCNC_NUM_STATES][CCNC_NUM_STATES]
 
 // Function to be executed in state init
 // valid return states: CCNC_STATE_IDLE, CCNC_STATE_STOP
+// WE INITIALIZE ALL THE THINGS: parsing and initializing all structures
+
 ccnc_state_t ccnc_do_init(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_STATE_IDLE;
   point_t *sp, *zero;
   signal(SIGINT, signal_handler); 
   
   // Steps:
+  // * print SW version
+  // * load and parse the G-code file
+  // * print G-code file
+  // * connect with the machine so with the broker MQTT
   // * in case of errors, transition to stop
 
-  // * print software version
+  // * print software version (N.B: we decided to print everything 
+  // * on stderr except for positions written on stdout so we can collect and 
+  // * plot if needed)
   eprintf("C-CNC ver. %s, %s build\n", VERSION, BUILD_TYPE);
   data->machine = machine_new(data->ini_file);
   // * connect with the machine
-  if (!data->machine) {
+  if (!data->machine) { // error in inifile or was missing the inifile
     next_state = CCNC_STATE_STOP;
     goto next_state;
   }
-  if (machine_connect(data->machine, NULL)) {
+  if (machine_connect(data->machine, NULL)) //returns 0 ONLY on successful connection otherwise...
+  {
     next_state = CCNC_STATE_STOP;
     goto next_state;
   }
@@ -98,7 +113,7 @@ ccnc_state_t ccnc_do_init(ccnc_state_data_t *data) {
   data->prog = program_new(data->prog_file);
   if (!data->prog) {
     next_state = CCNC_STATE_STOP;
-    goto next_state;
+    goto next_state; // goto
   }
   if (program_parse(data->prog, data->machine) == EXIT_FAILURE) {
     next_state = CCNC_STATE_STOP;
@@ -118,7 +133,7 @@ ccnc_state_t ccnc_do_init(ccnc_state_data_t *data) {
   machine_sync(data->machine, 1);
 
   
-next_state:
+next_state: //LABEL
   switch (next_state) {
     case CCNC_STATE_IDLE:
     case CCNC_STATE_STOP:
@@ -134,14 +149,19 @@ next_state:
 // Function to be executed in state idle
 // valid return states: CCNC_NO_CHANGE, CCNC_STATE_IDLE, CCNC_STATE_LOAD_BLOCK, CCNC_STATE_STOP
 // SIGINT triggers an emergency transition to stop
+// we wait for the user to press a button to start the real execution of the program 
+
 ccnc_state_t ccnc_do_idle(ccnc_state_data_t *data) {
-  ccnc_state_t next_state = CCNC_NO_CHANGE;
+  ccnc_state_t next_state = CCNC_NO_CHANGE; //stable state!!!(so we are print again the same message and reading another char)
   char key;
-  struct termios old_tio, new_tio;
+  struct termios old_tio, new_tio; //old state terminal 
+  // and new state terminal
+
   // Steps:
-  // if q is pressed, switch to stop
-  // * if spacebar is pressed, switch to load_block
+  // if q is pressed, switch to stop (stop execution)
+  // * if spacebar is pressed (after having checked the parsing of our program), switch to load_block (running execution)
   // * reset total timer
+  
   eprintf("Press spacebar or 'r' to run, 'q' to quit\n");
   // save current terminal settings
   tcgetattr(STDIN_FILENO, &old_tio);
@@ -151,25 +171,27 @@ ccnc_state_t ccnc_do_idle(ccnc_state_data_t *data) {
   cfmakeraw(&new_tio);
   // set new settings
   tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
-  // wait for keypress
-  key = getchar();
-  // reset initial temrinal setings
+  // wait for keypress (no need to press ANYMORE)
+  key = getchar(); //reads a single char on the terminal but it's executed only when it gets a newline (pressing ENTER)
+
+  // reset initial terminal setings (re-enabling caching mechanism)
   tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
   switch (key)
   {
-  case 'q':
-  case 'Q':
-    next_state = CCNC_STATE_STOP;
-    break;
-  case ' ':
-  case 'r':
-  case 'R':
-    next_state = CCNC_STATE_LOAD_BLOCK;
-  default:
-    break;
+    case 'q':
+    case 'Q':
+      next_state = CCNC_STATE_STOP;
+      break;
+    case ' ':
+    case 'r':
+    case 'R':
+      next_state = CCNC_STATE_LOAD_BLOCK;
+    default:
+      break; // do nothing
   }
-  data->t_blk = 0.0;
-  data->t_tot = 0.0;
+  // reset timings: times elapsed since we start executing (exiting from IDLE) the program
+  data->t_blk = 0;
+  data->t_tot = 0;
   machine_listen_update(data->machine);
   
   switch (next_state) {
@@ -198,13 +220,14 @@ ccnc_state_t ccnc_do_stop(ccnc_state_data_t *data) {
   // * disconnect machine
   // * free resources
   eprintf("Clean up ...");
-  signal(SIGINT, SIG_DFL);
-  if (data->machine) {
+  signal(SIGINT, SIG_DFL); //DISABLING THE SIGNAL HANDLER: resetting the default signal handler so stop execution when getting a SINGINT so a CRTL+C
+  if (data->machine) // NOT NULL so it's been initialized
+  {
     machine_disconnect(data->machine);
     machine_free(data->machine);
   }
   if (data->prog) {
-    program_free(data->prog);
+    program_free(data->prog); //deallocates all the blocks which deallocate also all the points
   }
   eprintf(" done.\n");
   
@@ -225,29 +248,31 @@ ccnc_state_t ccnc_do_load_block(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_STATE_IDLE;
   
   // Steps:
-  // * load next block/
+
+  // * loading the next block/
   block_t *b = program_next(data->prog);
-  if (!b) {
+  if (!b) // if this is the last block-->back to idle
+  {
     next_state = CCNC_STATE_IDLE;
     goto next_state;
   }
   block_print(b, stderr);
   switch (block_type(b))
   {
-  case NO_MOTION:
-    next_state = CCNC_STATE_NO_MOTION;
-    break;
-  case RAPID:
-    next_state = CCNC_STATE_RAPID_MOTION;
-    break;
-  case LINE:
-  case ARC_CW:
-  case ARC_CCW:
-    next_state = CCNC_STATE_INTERP_MOTION;
-    break;
-  default:
-    next_state = CCNC_STATE_IDLE;
-    break;
+    case NO_MOTION:
+      next_state = CCNC_STATE_NO_MOTION;
+      break;
+    case RAPID:
+      next_state = CCNC_STATE_RAPID_MOTION;
+      break;
+    case LINE:
+    case ARC_CW:
+    case ARC_CCW:
+      next_state = CCNC_STATE_INTERP_MOTION;
+      break;
+    default:
+      next_state = CCNC_STATE_IDLE;
+      break;
   }
 next_state:
   switch (next_state) {
@@ -266,8 +291,12 @@ next_state:
 
 // Function to be executed in state no_motion
 // valid return states: CCNC_STATE_LOAD_BLOCK
+// load the new tool
 ccnc_state_t ccnc_do_no_motion(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_STATE_LOAD_BLOCK;
+  
+  // Steps:
+  // * print block command
   
   switch (next_state) {
     case CCNC_STATE_LOAD_BLOCK:
@@ -280,23 +309,30 @@ ccnc_state_t ccnc_do_no_motion(ccnc_state_data_t *data) {
 }
 
 
-// Function to be executed in state rapid_motion
-// valid return states: CCNC_NO_CHANGE, CCNC_STATE_LOAD_BLOCK, CCNC_STATE_RAPID_MOTION
-// SIGINT triggers an emergency transition to stop
+// * Function to be executed in state rapid_motion
+// * valid return states: CCNC_NO_CHANGE, CCNC_STATE_LOAD_BLOCK, * CCNC_STATE_RAPID_MOTION
+// * SIGINT triggers an emergency transition to stop
+
+// setting the setPoint waiting the machine to reach it
 ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_NO_CHANGE;
   data_t tq = machine_tq(data->machine);
+
   // Steps:
-  // * call machine_listen_update()
+  // * call machine_listen_update(): reading the current machine status
   // * update times (block and total)
-  // * if error below threshold, transition to load_block
+  // * if positioning error falls below threshold, transition to load_block loading the new block
+
   machine_listen_update(data->machine);
   data->t_blk += tq;
   data->t_tot += tq;
-  if (machine_error(data->machine) < machine_max_error(data->machine)) {
+  // if the current error is smaller of the threshold target max error, we can exit without waiting for the tool to reach the setPoint position and then load the next block and go on
+  if (machine_error(data->machine) < machine_max_error(data->machine)) //thrs. = 5 micron
+  {
     next_state = CCNC_STATE_LOAD_BLOCK;
   }
-  if (_exit_request) {
+  if (_exit_request) // if we press CTRL+C during a rapid motion: we exit from a rapid motion either because the machine reports a small positioning error or because we just pressed ctrl+C
+  {
     _exit_request = 0;
     next_state = CCNC_STATE_LOAD_BLOCK;
   }
@@ -315,11 +351,13 @@ ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
   
   return next_state;
 }
-
+ 
 
 // Function to be executed in state interp_motion
 // valid return states: CCNC_NO_CHANGE, CCNC_STATE_LOAD_BLOCK, CCNC_STATE_INTERP_MOTION
 // SIGINT triggers an emergency transition to stop
+
+// calculate the lambda, then interpolates and syncs the machine
 ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_NO_CHANGE;
   data_t tq = machine_tq(data->machine);
@@ -331,21 +369,23 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
   // * calculate lambda
   // * interpolate position
   // * update times
-  // * if lambda >= 1 transition to load_block
+  // * if lambda >= 1 (reached positioning end) transition to load_block
   data->t_blk += tq;
   data->t_tot += tq;
-  if (data->t_blk >= block_dt(b) + tq / 2.0) {
+  if (data->t_blk >= block_dt(b) + tq / 2.0) // end of the block is reached
+  {
+    // tq / 2.0: for taking care of rounding errors for small numbers having a finite/limited precision
     next_state = CCNC_STATE_LOAD_BLOCK;
     goto next_block;
   }
   lambda = block_lambda(b, data->t_blk, &feed);
   sp = block_interpolate(b, lambda);
-  if (!sp) {
+  if (!sp) { // if we get an error
     next_state = CCNC_STATE_LOAD_BLOCK;
     goto next_block;
   }
-  printf("%lu,%f,%f,%f,%f,%f,%f,%f,%f\n", block_n(b), data->t_tot, data->t_blk, lambda, lambda * block_length(b), feed, point_x(sp), point_y(sp), point_z(sp));
-  machine_sync(data->machine, 0);
+  printf("%lu,%f,%f,%f,%f,%f,%f,%f,%f\n", block_n(b), data->t_tot, data->t_blk, lambda, lambda * block_length(b), feed, point_x(sp), point_y(sp), point_z(sp)); // total distance travelled = lambda * block_length(b): this prints on stdout to be available to make plots for instance
+  machine_sync(data->machine, 0); // setting these values
 
 next_block:
   switch (next_state) {
@@ -376,33 +416,35 @@ next_block:
 // |  _| |_| | | | | (__| |_| | (_) | | | \__ \
 // |_|  \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
 //    
-                                         
+                                          
 // This function is called in 1 transition:
 // 1. from idle to load_block
 void ccnc_reset(ccnc_state_data_t *data) {
   // Steps:
   // reset both timers
-  data->t_blk = data->t_tot = 0.0;
+  data->t_blk = data->t_tot = 0;
+  // header for the table of positions
   printf("n,t_tot,t_blk,lambda,s,feed,x,y,z\n");
 }
 
 // This function is called in 1 transition:
-// 1. from load_block to rapid_motion
-void ccnc_begin_rapid(ccnc_state_data_t *data) {
+// 1. from load_block to rapid_motion: immediately before entering into rapid
+void ccnc_begin_rapid(ccnc_state_data_t *data) 
+{
   point_t *sp = machine_setpoint(data->machine);
   block_t *b = program_current(data->prog);
-  point_t *target = block_target(b);
+  point_t *target = block_target(b); //final position of the block
   // Steps:
   // * reset block timer
   // * set final position as set point and use machine_sync
-  // * call machine_listen_start()
-  machine_listen_start(data->machine);
-  data->t_blk = 0.0;
+  // * call machine_listen_start() enabling the subscription to MQTT msgs
+  machine_listen_start(data->machine); //enable the subscription to the topic published by machine simulator
+  data->t_blk = 0; // we are at the beginning starting the rapid motion
   // copy target coordinates into setpoint
   point_set_x(sp, point_x(target));
   point_set_y(sp, point_y(target));
   point_set_z(sp, point_z(target));
-  machine_sync(data->machine, 1);
+  machine_sync(data->machine, 1); //setting/synchronize these setPoint coordinates with the machine: we tell the machine 'go to this final target point'
 }
 
 // This function is called in 1 transition:
@@ -410,7 +452,7 @@ void ccnc_begin_rapid(ccnc_state_data_t *data) {
 void ccnc_begin_interp(ccnc_state_data_t *data) {
   // Steps:
   // reset block timer
-  data->t_blk = 0.0;
+  data->t_blk = 0;
 }
 
 // This function is called in 1 transition:

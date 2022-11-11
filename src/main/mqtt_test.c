@@ -3,8 +3,8 @@
 //  | |\/| | | | || |   | |
 //  | |  | | |_| || |   | |
 //  |_|  |_|\__\_\|_|   |_|
-// Simple MQTT client example
-#include "../inic.h"
+// Simple MQTT client example (for the broker) doing the task of subscriber in particular (getting messages from publishers)
+#include "../inic.h" // header for reading ini files
 #include <mosquitto.h>
 #include <mqtt_protocol.h>
 #include <stdio.h>
@@ -38,6 +38,7 @@ typedef struct {
 
 
 // Functions
+// ud = UserData, rc = returnCode (result of the connection: success or error)
 void on_connect(struct mosquitto *mqt, void *ud, int rc);
 void on_disconnect(struct mosquitto *mqt, void *ud, int rc);
 void on_subscribe(struct mosquitto *mqt, void *ud, int mid, int qos_len, const int *qos);
@@ -46,10 +47,11 @@ void on_message(struct mosquitto *mqt, void *ud, const struct mosquitto_message 
 
 // global variable for controlling the main loop
 static int _running = 1;
-static void sig_handler(int signal) {
+static void sig_handler(int signal) // DEALING WITH interrut signals: when typing ctrl+C we send to process an the INTERRUPT signal through our OS and THIS function is called
+{
   switch (signal)
   {
-  case SIGINT:
+  case SIGINT: // SIGNT is the signal sent to the process when pressing ctrl+C
     _running = 0;
     break;
   default:
@@ -67,6 +69,7 @@ int main(int argc, char const *argv[]) {
   void *ini = NULL;
   struct mosquitto *mqt;
   int delay = 0;
+  //default values for MQTT protocol
   userdata_t ud = {
     .broker_addr = "localhost", 
     .broker_port = 1883,
@@ -80,7 +83,7 @@ int main(int argc, char const *argv[]) {
   // Read INI file
   ini = ini_init(INI_FILE);
   if (!ini) {
-    eprintf("Error opening INI file\n");
+    eprintf("Error opening INI file settings.ini\n");
     return 1;
   }
   ini_get_char(ini, INI_SECTION, "broker_addr", ud.broker_addr, BUFLEN);
@@ -102,27 +105,27 @@ int main(int argc, char const *argv[]) {
     eprintf("Library version: %d.%d.%d\n", major, minor, revision);
   }
 
-  // Creating MQTT object
+  // Creating MQTT object: create and initialize MQTT library
   mqt = mosquitto_new(NULL, 1, &ud);
   if (!mqt) {
     perror("Could not create MQTT object");
     return 3;
   }
 
-  // Set the callbacks
+  // Set the callbacks to deal with events (telling the library which function to call whenever some events happen (i. e: connection, disconnection, subscription, unsubscription, getting msg, ...) )
   mosquitto_connect_callback_set(mqt, on_connect);
   mosquitto_disconnect_callback_set(mqt, on_disconnect);
   mosquitto_subscribe_callback_set(mqt, on_subscribe);
   mosquitto_unsubscribe_callback_set(mqt, on_unsubscribe);
   mosquitto_message_callback_set(mqt, on_message);
 
-  // Connect to the broker
+  // Connect to the broker (60 = n° of sec between 'keep alive' packets sent back to client (broker to client: 'are you still connected' ?)
   if (mosquitto_connect(mqt, ud.broker_addr, ud.broker_port, 60) != MOSQ_ERR_SUCCESS) {
     perror("Error connecting to the broker");
     return 4;
   }
 
-  // main loop
+  // Main loop
   while (ud.running && _running) {
     if (mosquitto_loop(mqt, -1, 1) != MOSQ_ERR_SUCCESS) {
       perror("mosquitto_loop error");
@@ -133,13 +136,13 @@ int main(int argc, char const *argv[]) {
 
   // Unsubscribe
   mosquitto_unsubscribe(mqt, NULL, ud.topic);
-  //wait for unsubscription to happen
+  //wait for unsubscription to happen 
   while (ud.ready_to_exit == 0) {
-    mosquitto_loop(mqt, -1, 1);
+    mosquitto_loop(mqt, -1, 1); // to call whenever we have pending mosquitto operations: this functions updates all the network operations
     usleep(delay * 1000);
   }
 
-  // Clean-up
+  // Clean-up from broker server and free the memory
   mosquitto_disconnect(mqt);
   mosquitto_destroy(mqt);
   mosquitto_lib_cleanup();
@@ -161,7 +164,7 @@ void on_connect(struct mosquitto *mqt, void *obj, int rc) {
     eprintf("-> Connected to %s:%d\n", ud->broker_addr, ud->broker_port);
     // subscribe
     if (mosquitto_subscribe(mqt, NULL, ud->topic, 0) != MOSQ_ERR_SUCCESS) {
-      perror("Could not subscribe");
+      perror("Could not subscribe to the topic ccnc/#");
       exit(EXIT_FAILURE);
     }
   }
@@ -173,7 +176,7 @@ void on_connect(struct mosquitto *mqt, void *obj, int rc) {
 }
 
 void on_disconnect(struct mosquitto *mqt, void *ud, int rc) {
-  eprintf("<- Disconnected\n");
+  eprintf("<- Disconnected from %s:%d\n", ((userdata_t *)ud)->broker_addr, ((userdata_t *)ud)->broker_port);
 }
 
 void on_subscribe(struct mosquitto *mqt, void *ud, int mid, int qos_len, const int *qos) {
@@ -181,7 +184,7 @@ void on_subscribe(struct mosquitto *mqt, void *ud, int mid, int qos_len, const i
 }
 
 void on_unsubscribe(struct mosquitto *mqt, void *ud, int rc) {
-  eprintf("<- Unsubscribed from %s\n", ((userdata_t *)ud)->topic);
+  eprintf("<- Unsubscribed from the topic %s\n", ((userdata_t *)ud)->topic);
   // signal that we are ready to exit
   ((userdata_t *)ud)->ready_to_exit = 1;
 }

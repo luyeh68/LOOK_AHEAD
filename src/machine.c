@@ -26,7 +26,7 @@ typedef struct machine {
   int broker_port;
   char pub_topic[BUFLEN];
   char sub_topic[BUFLEN];
-  char pub_buffer[BUFLEN];
+  char pub_buffer[BUFLEN]; // string to send as payload
   struct mosquitto *mqt;
   struct mosquitto_message *msg;
   int connecting;
@@ -68,13 +68,17 @@ machine_t *machine_new(const char *ini_path) {
     rc += ini_get_double(ini, "C-CNC", "origin_x", &x);
     rc += ini_get_double(ini, "C-CNC", "origin_y", &y);
     rc += ini_get_double(ini, "C-CNC", "origin_z", &z);
+
     m->zero = point_new();
     point_set_xyz(m->zero, x, y, z);
+    
     rc += ini_get_double(ini, "C-CNC", "offset_x", &x);
     rc += ini_get_double(ini, "C-CNC", "offset_y", &y);
     rc += ini_get_double(ini, "C-CNC", "offset_z", &z);
+    
     m->offset = point_new();
     point_set_xyz(m->offset, x, y, z);
+    
     rc += ini_get_char(ini, "MQTT", "broker_addr", m->broker_address, BUFLEN);
     rc += ini_get_int(ini, "MQTT", "broker_port", &m->broker_port);
     rc += ini_get_char(ini, "MQTT", "pub_topic", m->pub_topic, BUFLEN);
@@ -93,15 +97,18 @@ machine_t *machine_new(const char *ini_path) {
     point_set_xyz(m->zero, 0, 0, 0);
     m->offset = point_new();
     point_set_xyz(m->offset, 0, 0, 0);
+
     strcpy(m->broker_address, "localhost");
     m->broker_port = 1883;
     strcpy(m->pub_topic, "c-cnc/setpoint");
     strcpy(m->sub_topic, "c-cnc/status/#");
   }
   m->setpoint = point_new();
+  //initially the setPoint is the machine origin
   point_modal(m->zero, m->setpoint);
   m->position = point_new();
   m->error = m->max_error;
+
   m->mqt = NULL;
   if (mosquitto_lib_init() != MOSQ_ERR_SUCCESS) {
     perror("Could not initialize Mosquitto library");
@@ -132,7 +139,7 @@ int machine_connect(machine_t *m, machine_on_message callback) {
   assert(m);
   m->mqt = mosquitto_new(NULL, 1, m);
   if (!m->mqt) {
-    perror("Could not create MQTT");
+    perror("Could not create MQTT object");
     return 1;
   }
   mosquitto_connect_callback_set(m->mqt, on_connect);
@@ -163,29 +170,30 @@ int machine_sync(machine_t *m, int rapid) {
     point_z(m->setpoint) + point_z(m->offset),
     rapid ? "true" : "false"
   );
-  // send buffer over MQTT
+  // send buffer (setPoint) over MQTT
   mosquitto_publish(m->mqt, NULL, m->pub_topic, strlen(m->pub_buffer), m->pub_buffer, 0, 0);
   return 0;
 }
-
-
+  
+//function we call immediately before entering the waiting loop for the rapid motion 
 int machine_listen_start(machine_t *m) {
   // subscribe to the topic where the machine publishes to
   if (mosquitto_subscribe(m->mqt, NULL, m->sub_topic, 0) != MOSQ_ERR_SUCCESS) {
-    perror("Could not subscribe");
+    perror("Could not subscribe to the subtopic");
     return 1;
   }
+  // in order NOT to trigger an end of block (current error reset at the beginning of each rapid motion )
   m->error = m->max_error * 10.0;
-  eprintf("Subscribed to topic %s\n", m->sub_topic);
+  eprintf("Subscribed to subtopic %s\n", m->sub_topic);
   return 0;
 }
 
 int machine_listen_stop(machine_t *m) {
   if (mosquitto_unsubscribe(m->mqt, NULL, m->sub_topic) != MOSQ_ERR_SUCCESS) {
-    perror("Could not unsubscribe");
+    perror("Could not unsubscribe from the subtopic");
     return 1;
   }
-  eprintf("Unsubscribed from topic %s\n", m->sub_topic);
+  eprintf("Unsubscribed from the subtopic %s\n", m->sub_topic);
   return 0;
 }
 
@@ -198,7 +206,8 @@ void machine_listen_update(machine_t *m) {
 
 void machine_disconnect(machine_t *m) {
   if (m->mqt) {
-    while (mosquitto_want_write(m->mqt)) {
+    while (mosquitto_want_write(m->mqt)) // are there still pending messages to be sent?
+    {
       mosquitto_loop(m->mqt, 0, 1);
       usleep(10000);
     }
@@ -236,7 +245,7 @@ static void on_connect(struct mosquitto *mqt, void *obj, int rc) {
     eprintf("-> Connected to %s:%d\n", m->broker_address, m->broker_port);
     // subscribe
     if (mosquitto_subscribe(mqt, NULL, m->sub_topic, 0) != MOSQ_ERR_SUCCESS) {
-      perror("Could not subscribe");
+      perror("Could not subscribe to the subtopic");
       exit(EXIT_FAILURE);
     }
   }
@@ -255,7 +264,7 @@ static void on_message(struct mosquitto *mqt, void *ud, const struct mosquitto_m
   char *subtopic = strrchr(msg->topic, '/') + 1;
 
   eprintf("<- message: %s:%s\n", msg->topic, (char *)msg->payload);
-  mosquitto_message_copy(m->msg, msg);
+  mosquitto_message_copy(m->msg, msg); // to be available if needed after the callback end
 
   // if the last topic part is "error", then take it as a single value
   if (strcmp(subtopic, "error") == 0 ) {

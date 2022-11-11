@@ -142,7 +142,8 @@ if(NATIVE) # Native build: use shared libraries (when compiling for our OS)
   target_link_libraries(c-cnc ${PROJECT_NAME}_shared m)
 else() # X-build: use static libraries (when cross-compiling for a different archictecture (i.e. embedded system))
   add_library(${PROJECT_NAME}_static STATIC ${LIB_SOURCES} ${LIB_SOURCES_CPP})
-  target_link_libraries(ini_test ${PROJECT_NAME}_static)
+  target_link_libraries(${PROJECT_NAME}_static mosquitto)  #_static mosquitto_static
+  target_link_libraries(ini_test ${PROJECT_NAME}_static) #_static mosquitto_static
   target_link_libraries(mqtt_test ${PROJECT_NAME}_static mosquitto_static ssl crypto dl pthread)
   target_link_libraries(mqtt_stress ${PROJECT_NAME}_static mosquitto_static ssl crypto dl pthread)
   target_link_libraries(c-cnc ${PROJECT_NAME}_static mosquitto_static ssl crypto dl pthread m)

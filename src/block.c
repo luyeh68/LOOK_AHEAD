@@ -483,12 +483,6 @@ int main() {
   block_t *b1 = NULL, *b2 = NULL, *b3 = NULL;
   machine_t *cfg = machine_new(NULL);
 
-  /* x HW_1 (EASTER's HW)
-  char l1[] = "N01 G00 X100 Y20 Z100 T1 S5000";
-  char l2[] = "N02 G01 Z20 F1000";
-  char l3[] = "N03 G03 Y40 J10";
-  */
-
   b1 = block_new("N10 G00 X90 Y90 Z100 t3", NULL, cfg);
   block_parse(b1);
   b2 = block_new("N20 G01 Y100 X100 F1000 S2000", b1, cfg);
