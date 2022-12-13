@@ -42,7 +42,7 @@ void point_inspect(const point_t *p, char **desc);
 
 // ACCESSORS ===================================================================
 
-// Set coordinates
+// Set coordinates (SETTERS)
 void point_set_x(point_t *p, data_t val);
 void point_set_y(point_t *p, data_t val);
 void point_set_z(point_t *p, data_t val);
@@ -62,7 +62,7 @@ data_t point_dist(const point_t *from, const point_t *to);
 void point_delta(const point_t *from, const point_t *to, point_t *delta);
 
 // "Modal behavior": a point may have undefined coordinates and if so it
-// must be able ti inherit undefined coordinates from the previous point
+// must be able to inherit undefined coordinates from the previous point
 void point_modal(const point_t *from, point_t *to);
 
 

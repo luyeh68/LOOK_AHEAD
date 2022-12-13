@@ -24,13 +24,13 @@ Functions and types have been generated with prefix "ccnc_"
 // By default set to void; override this typedef or load the proper
 // header if you need
 typedef struct {
-  char *ini_file;     // INI file
+  char *ini_file;           // INI file
   char const *prog_file;    // G-code program file
-  machine_t *machine; // machine object
-  program_t *prog;    // program object
-  data_t t_tot;       // total program timer
-  data_t t_blk;       // block timer
-} ccnc_state_data_t;
+  machine_t *machine;       // machine object
+  program_t *prog;          // program object
+  data_t t_tot;             // total program timer
+  data_t t_blk;             // block timer
+} ccnc_state_data_t;        //struct containing all info we need in the different states
 
 // NOTHING SHALL BE CHANGED AFTER THIS LINE!
 
@@ -101,4 +101,4 @@ extern transition_func_t *const ccnc_transition_table[CCNC_NUM_STATES][CCNC_NUM_
 // state manager
 ccnc_state_t ccnc_run_state(ccnc_state_t cur_state, ccnc_state_data_t *data);
 
-#endif
+#endif //FSM_H

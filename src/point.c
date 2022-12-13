@@ -46,7 +46,8 @@ point_t *point_new() {
   point_t *p = (point_t *)calloc(1, sizeof(point_t));
   if (!p) {
     perror("Error creating a point");
-    exit(EXIT_FAILURE);
+    return NULL;
+    //exit(EXIT_FAILURE);
   } 
   return p;
 }
@@ -60,7 +61,7 @@ void point_free(point_t *p) {
 
 // Write into desc a description of a point
 // desc is automatically allocated to the right size.
-// it is CALLER RESPONSIBILITY TO FREE desc
+// It is CALLER responsibility TO FREE desc
 #define FIELD_LENGTH 8
 void point_inspect(const point_t *p, char **desc) {
   assert(p);
@@ -95,7 +96,7 @@ void point_inspect(const point_t *p, char **desc) {
 
 // ACCESSORS ===================================================================
 
-// D.R.Y. = Don't Repeat Youlself
+// D.R.Y. = Don't Repeat Yourself
 // rather than the first block of functions hereafter (which is full of
 // repetitions), we are using metaprogramming
 
@@ -230,7 +231,7 @@ int main() {
   
   // Set first point to origin
   point_set_xyz(p1, 0, 0, 0);
-  // Only set x and Y of second point
+  // Only set X and Y of second point
   point_set_x(p2, 100);
   point_set_y(p2, 100);
   point_inspect(p2, &desc);
@@ -252,10 +253,10 @@ int main() {
   printf("Projections p1->p2: %s\n", desc);
   free(desc);
   
-  // Free the points memory
+  // Free the memory for points
   point_free(p1);
   point_free(p2);
   point_free(p3);
   return 0;
 }
-#endif
+#endif 

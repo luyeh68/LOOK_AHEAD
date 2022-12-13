@@ -4,7 +4,7 @@
 //  |  __/| | | (_) | (_| | | | (_| | | | | | |
 //  |_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_|
 //                   |___/                     
-// C-CNC progam interface
+// C-CNC program interface
 
 #ifndef PROGRAM_H
 #define PROGRAM_H
@@ -48,7 +48,7 @@ void program_print(const program_t *program, FILE *output);
 int program_parse(program_t *program, machine_t *cfg);
 
 // linked-list navigation functions
-block_t *program_next(program_t *program); // to get/load the next block / programm to be executed on the machine
+block_t *program_next(program_t *program); // to get/load the next block / program to be executed on the machine
 void program_reset(program_t *program); //resetting the program back to the very first block
 
 
@@ -60,6 +60,4 @@ block_t *program_current(const program_t *p); //returns the current block
 block_t *program_first(const program_t *p); // return the VF block
 block_t *program_last(const program_t *p); // return the VL block
 
-
-
-#endif // end double inclusion guard
+#endif // PROGRAM_H

@@ -12,10 +12,8 @@
 //
 // Add here program-related functions for implementing the look-ahead behaviour
 
-#include "defines.h"
-#include "point.h"
-#include "block.h"
 #include "program.h"
 
-// for example:
-int program_look_ahead(program_t *p);
+// * For example:
+// * int program_look_ahead(program_t *p);
+

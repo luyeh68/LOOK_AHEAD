@@ -41,7 +41,7 @@ typedef struct block {
   data_t acc;            // actual acceleration
   machine_t *machine;    // machine configuration
   block_profile_t *prof; // velocity profile
-  struct block *prev;    // next block (linked list)
+  struct block *prev;    // next block (linked list fashion)
   struct block *next;    // previous block
 } block_t;
 
@@ -70,7 +70,7 @@ block_t *block_new(const char *line, block_t *prev, machine_t *cfg) {
 
   if (prev) { // copy the memory from the previous block
     memcpy(b, prev, sizeof(block_t));
-    //linked list behaviour
+    // linked list behaviour
     b->prev = prev;
     prev->next = b;
   } else { // this is the first block
@@ -174,7 +174,7 @@ int block_parse(block_t *b) {
   case ARC_CW:
   case ARC_CCW:
     /* calculate arc coordinates: arc radius OR arc center depending on the
-       INPUT: calculate the center if R is given OR  we calculate R if center is
+       INPUT: calculate the center if R is given OR we calculate R if center is
        given */
     if (block_arc(b)) {
       rv++;
@@ -183,20 +183,18 @@ int block_parse(block_t *b) {
     // set corrected feedrate and acceleration
     // centripetal acc = f^2/r, must be <= A
     // INI file gives A in mm/s^2, feedrate is given in mm/min
-    // Moving along an arc: sqrt((a)^2 + (a_c)^2) <= maxAvailAcc = A)
-    // => a^2 <= nominAcc^2 - (v^2/r)^2;
     // We divide by two because, in the critical condition where we have
     // the maximum feedrate, in the following equation for calculating the
     // acceleration, it goes to 0. In fact, if we accept the centripetal
     // acceleration to reach the maximum acceleration, then the tangential
     // acceleration would go to 0.
-    // A more elegant solution would be to calculate a minimum time soltion
-    // for the whole arc, but it is outside the scope.
+    // A more elegant solution would be to calculate a minimum time solution for
+    // the whole arc, but it is outside the scope.
     b->act_feedrate =
         MIN(b->feedrate, sqrt(machine_A(b->machine) / 2.0 * b->r) * 60);
     // tangential acceleration: when composed with centripetal one, total
     // acceleration must be <= A
-    // a^2 <= A^2 + v^4/r^2
+    // a^2 <= A^2 - v^4/r^2
     b->acc = sqrt(pow(machine_A(b->machine), 2) -
                   pow(b->act_feedrate / 60, 4) / pow(b->r, 2));
     // deal with complex result
@@ -216,7 +214,7 @@ int block_parse(block_t *b) {
 
 /* Evaluate the value of lambda at a certaint time and also return the current
  * velocity v (Lambda = it's the integral of block velocity profile normalized
- * to 1 (divided by the total block length) */
+ * to 1 (divided by the total block length)) */
 data_t block_lambda(const block_t *b, data_t t, data_t *v) {
   assert(b);
   data_t res;
@@ -230,32 +228,27 @@ data_t block_lambda(const block_t *b, data_t t, data_t *v) {
   if (t < 0) {
     res = 0.0;
     *v = 0.0;
-  } 
-  else if (t < dt_1) { // acceleration
+  } else if (t < dt_1) { // acceleration
     res = a * pow(t, 2) / 2.0;
     *v = a * t;
-  }
-  else if (t < (dt_1 + dt_m)) { // maintenance
+  } else if (t < (dt_1 + dt_m)) { // maintenance
     res = f * (dt_1 / 2.0 + (t - dt_1));
     *v = f;
-  }
-  else if (t < (dt_1 + dt_m + dt_2)) { // deceleration
+  } else if (t < (dt_1 + dt_m + dt_2)) { // deceleration
     data_t t_2 = dt_1 + dt_m;
     res = f * dt_1 / 2.0 + f * (t - dt_1) +
           d / 2.0 * (pow(t, 2) + pow(t_2, 2)) - d * t * t_2;
     *v = f + d * (t - t_2);
-  }
-  else {
+  } else {
     res = b->prof->l;
-    *v = 0;
+    *v = 0.0;
   }
   res /= b->prof->l; // normalization
   *v *= 60;          // convert to mm/min
   return res;
 }
 
-// CAREFUL: this function allocates a point
-point_t *block_interpolate(block_t *b, data_t lambda) {
+point_t *block_interpolate(const block_t *b, data_t lambda) {
   assert(b);
   point_t *result = machine_setpoint(b->machine);
   point_t *p0 = point_zero(b); // NOT to be deallocated
@@ -263,14 +256,12 @@ point_t *block_interpolate(block_t *b, data_t lambda) {
   if (b->type == LINE) {
     point_set_x(result, point_x(p0) + point_x(b->delta) * lambda);
     point_set_y(result, point_y(p0) + point_y(b->delta) * lambda);
-  } 
-  else if (b->type == ARC_CW || b->type == ARC_CCW) {
+  } else if (b->type == ARC_CW || b->type == ARC_CCW) {
     point_set_x(result, point_x(b->center) +
                             b->r * cos(b->theta0 + b->dtheta * lambda));
     point_set_y(result, point_y(b->center) +
                             b->r * sin(b->theta0 + b->dtheta * lambda));
-  } 
-  else {
+  } else {
     fprintf(stderr, "Unexpected block type!\n");
     return NULL;
   }
@@ -305,7 +296,7 @@ block_getter(point_t *, target, target);
 //  |____/ \__\__,_|\__|_|\___| |_|  \__,_|_| |_|\___|
 // Definitions for the static functions declared above
 
-// Calculate the integer multiple of sampling time; also prvide the rounding
+// Calculate the integer multiple of sampling time; also provide the rounding
 // amount in dq
 static data_t quantize(data_t t, data_t tq, data_t *dq) {
   data_t q;
@@ -318,7 +309,7 @@ static data_t quantize(data_t t, data_t tq, data_t *dq) {
 static void block_compute(const block_t *b) {
   assert(b);
   data_t A, a, d;
-  data_t dt, dt_1, dt_2, dt_m, dq; //dq = dt - nextTick => dt = n * dq
+  data_t dt, dt_1, dt_2, dt_m, dq; // dq = dt - nextTick => dt = n * dq
   data_t f_m, l;
 
   A = b->acc;
@@ -335,7 +326,7 @@ static void block_compute(const block_t *b) {
     dt_1 = sqrt(l / A);
     dt_2 = dt_1;
     dt = quantize(dt_1 + dt_2, machine_tq(b->machine), &dq);
-    dt_m = 0;
+    dt_m = 0.0;
     dt_2 += dq;
     f_m = 2 * l / (dt_1 + dt_2);
   }
@@ -367,8 +358,8 @@ static int block_arc(block_t *b) {
   zf = point_z(b->target);
 
   if (b->r) { // if the radius is given
-    data_t dx = point_x(b->delta); 
-    data_t dy = point_y(b->delta); 
+    data_t dx = point_x(b->delta);
+    data_t dy = point_y(b->delta);
     r = b->r;
     data_t dxy2 = pow(dx, 2) + pow(dy, 2);
     data_t sq = sqrt(-pow(dy, 2) * dxy2 * (dxy2 - 4 * r * r));
@@ -414,7 +405,7 @@ static int block_arc(block_t *b) {
 }
 
 // Return a reliable previous point, i.e. machine zero if this is the first
-// block
+// block (no memory leaks)
 static point_t *point_zero(const block_t *b) {
   assert(b);
   return b->prev ? b->prev->target : machine_zero(b->machine);

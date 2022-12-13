@@ -139,8 +139,6 @@ void program_reset(program_t *p) {
   p->current = NULL;
 }
 
-
-
 // GETTERS =====================================================================
 
 #define program_getter(typ, par, name) \

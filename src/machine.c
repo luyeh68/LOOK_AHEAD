@@ -1,5 +1,5 @@
-//   __  __            _     _            
-//  |  \/  | __ _  ___| |__ (_)_ __   ___ 
+//   __  __            _     _
+//  |  \/  | __ _  ___| |__ (_)_ __   ___
 //  | |\/| |/ _` |/ __| '_ \| | '_ \ / _ \
 //  | |  | | (_| | (__| | | | | | | |  __/
 //  |_|  |_|\__,_|\___|_| |_|_|_| |_|\___|
@@ -9,18 +9,18 @@
 #include <mqtt_protocol.h>
 #include <unistd.h>
 
-
-//   ____            _                 _   _                 
-//  |  _ \  ___  ___| | __ _ _ __ __ _| |_(_) ___  _ __  ___ 
+//   ____            _                 _   _
+//  |  _ \  ___  ___| | __ _ _ __ __ _| |_(_) ___  _ __  ___
 //  | | | |/ _ \/ __| |/ _` | '__/ _` | __| |/ _ \| '_ \/ __|
 //  | |_| |  __/ (__| | (_| | | | (_| | |_| | (_) | | | \__ \
 //  |____/ \___|\___|_|\__,_|_|  \__,_|\__|_|\___/|_| |_|___/
-                                                          
+
 #define BUFLEN 1024
 typedef struct machine {
   data_t A, tq;                 // max nominal acceleration and timestep
   data_t max_error, error;      // max positioning error and actual error
-  point_t *zero, *offset;       // machine reference zero and workpiece offset
+  point_t *zero, *offset;       // machine reference zero / origin and workpiece
+                                // offset w.r.t machine origin
   point_t *setpoint, *position; // desired and actual position
   char broker_address[BUFLEN];
   int broker_port;
@@ -35,14 +35,15 @@ typedef struct machine {
 
 // callbacks
 static void on_connect(struct mosquitto *mqt, void *obj, int rc);
-static void on_message(struct mosquitto *mqt, void *ud, const struct mosquitto_message *msg);
+static void on_message(struct mosquitto *mqt, void *ud,
+                       const struct mosquitto_message *msg);
 
-//   _____                 _   _                 
-//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___ 
+//   _____                 _   _
+//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___
 //  | |_ | | | | '_ \ / __| __| |/ _ \| '_ \/ __|
 //  |  _|| |_| | | | | (__| |_| | (_) | | | \__ \
 //  |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
-                                              
+
 // LIFECYCLE ===================================================================
 
 // Create a new instance reading data from an INI file
@@ -51,14 +52,14 @@ machine_t *machine_new(const char *ini_path) {
   machine_t *m = (machine_t *)calloc(1, sizeof(machine_t));
   if (!m) {
     perror("Error creating machine object");
-    exit(EXIT_FAILURE);
+    return NULL; // exit(EXIT_FAILURE);
   }
   if (ini_path) { // load values from INI file
     void *ini = ini_init(ini_path);
     data_t x, y, z;
     int rc = 0;
     if (!ini) {
-      fprintf(stderr, "Could not open the ini file %s\n", ini_path);
+      eprintf("Could not open the ini file %s\n", ini_path);
       return NULL;
     }
     rc += ini_get_double(ini, "C-CNC", "A", &m->A);
@@ -71,14 +72,14 @@ machine_t *machine_new(const char *ini_path) {
 
     m->zero = point_new();
     point_set_xyz(m->zero, x, y, z);
-    
+
     rc += ini_get_double(ini, "C-CNC", "offset_x", &x);
     rc += ini_get_double(ini, "C-CNC", "offset_y", &y);
     rc += ini_get_double(ini, "C-CNC", "offset_z", &z);
-    
+
     m->offset = point_new();
     point_set_xyz(m->offset, x, y, z);
-    
+
     rc += ini_get_char(ini, "MQTT", "broker_addr", m->broker_address, BUFLEN);
     rc += ini_get_int(ini, "MQTT", "broker_port", &m->broker_port);
     rc += ini_get_char(ini, "MQTT", "pub_topic", m->pub_topic, BUFLEN);
@@ -88,8 +89,7 @@ machine_t *machine_new(const char *ini_path) {
       fprintf(stderr, "Missing/wrong %d config parameters\n", rc);
       return NULL;
     }
-  }
-  else { // provide default values
+  } else { // provide default values
     m->A = 125;
     m->max_error = 0.005;
     m->tq = 0.005;
@@ -104,7 +104,7 @@ machine_t *machine_new(const char *ini_path) {
     strcpy(m->sub_topic, "c-cnc/status/#");
   }
   m->setpoint = point_new();
-  //initially the setPoint is the machine origin
+  // initially the setPoint is the machine origin
   point_modal(m->zero, m->setpoint);
   m->position = point_new();
   m->error = m->max_error;
@@ -112,7 +112,7 @@ machine_t *machine_new(const char *ini_path) {
   m->mqt = NULL;
   if (mosquitto_lib_init() != MOSQ_ERR_SUCCESS) {
     perror("Could not initialize Mosquitto library");
-    exit(EXIT_FAILURE);
+    return NULL; // exit(EXIT_FAILURE);
   }
   m->connecting = 1;
   return m;
@@ -144,7 +144,8 @@ int machine_connect(machine_t *m, machine_on_message callback) {
   }
   mosquitto_connect_callback_set(m->mqt, on_connect);
   mosquitto_message_callback_set(m->mqt, callback ? callback : on_message);
-  if (mosquitto_connect(m->mqt, m->broker_address, m->broker_port, 60) != MOSQ_ERR_SUCCESS) {
+  if (mosquitto_connect(m->mqt, m->broker_address, m->broker_port, 60) !=
+      MOSQ_ERR_SUCCESS) {
     perror("Could not connect to broker");
     return 2;
   }
@@ -164,31 +165,34 @@ int machine_sync(machine_t *m, int rapid) {
   }
   // fill up pub_buffer with current set point, comma separated
   // also, compensate for the workpiece offset from the INI file:
-  snprintf(m->pub_buffer, BUFLEN, "{\"x\":%f,\"y\":%f,\"z\":%f,\"rapid\":%s}", 
-    point_x(m->setpoint) + point_x(m->offset), 
-    point_y(m->setpoint) + point_y(m->offset), 
-    point_z(m->setpoint) + point_z(m->offset),
-    rapid ? "true" : "false"
-  );
+  snprintf(m->pub_buffer, BUFLEN, "{\"x\":%f,\"y\":%f,\"z\":%f,\"rapid\":%s}",
+           point_x(m->setpoint) + point_x(m->offset),
+           point_y(m->setpoint) + point_y(m->offset),
+           point_z(m->setpoint) + point_z(m->offset), rapid ? "true" : "false");
   // send buffer (setPoint) over MQTT
-  mosquitto_publish(m->mqt, NULL, m->pub_topic, strlen(m->pub_buffer), m->pub_buffer, 0, 0);
+  mosquitto_publish(m->mqt, NULL, m->pub_topic, strlen(m->pub_buffer),
+                    m->pub_buffer, 0, 0);
   return 0;
 }
-  
-//function we call immediately before entering the waiting loop for the rapid motion 
+
+// function we call immediately before entering the waiting loop for the rapid
+// motion
 int machine_listen_start(machine_t *m) {
+  assert(m);
   // subscribe to the topic where the machine publishes to
   if (mosquitto_subscribe(m->mqt, NULL, m->sub_topic, 0) != MOSQ_ERR_SUCCESS) {
     perror("Could not subscribe to the subtopic");
     return 1;
   }
-  // in order NOT to trigger an end of block (current error reset at the beginning of each rapid motion )
+  // in order NOT to trigger an end of block (current error reset at the
+  // beginning of each rapid motion)
   m->error = m->max_error * 10.0;
   eprintf("Subscribed to subtopic %s\n", m->sub_topic);
   return 0;
 }
 
 int machine_listen_stop(machine_t *m) {
+  assert(m);
   if (mosquitto_unsubscribe(m->mqt, NULL, m->sub_topic) != MOSQ_ERR_SUCCESS) {
     perror("Could not unsubscribe from the subtopic");
     return 1;
@@ -198,6 +202,7 @@ int machine_listen_stop(machine_t *m) {
 }
 
 void machine_listen_update(machine_t *m) {
+  assert(m);
   // call mosquitto_loop
   if (mosquitto_loop(m->mqt, 0, 1) != MOSQ_ERR_SUCCESS) {
     perror("mosquitto_loop error");
@@ -205,36 +210,36 @@ void machine_listen_update(machine_t *m) {
 }
 
 void machine_disconnect(machine_t *m) {
+  assert(m);
   if (m->mqt) {
-    while (mosquitto_want_write(m->mqt)) // are there still pending messages to be sent?
+    while (mosquitto_want_write(
+        m->mqt)) // are there still pending messages to be sent?
     {
       mosquitto_loop(m->mqt, 0, 1);
       usleep(10000);
     }
+    // no more pending msgs...DISCONNETTING
     mosquitto_disconnect(m->mqt);
   }
 }
 
-
 // ACCESSORS ===================================================================
 
-#define machine_getter(typ, par)                                               \
-  typ machine_##par(const machine_t *m) {                                      \
+#define machine_getter(typ, par, name)                                         \
+  typ machine_##name(const machine_t *m) {                                     \
     assert(m);                                                                 \
     return m->par;                                                             \
   }
 
-machine_getter(data_t, A);
-machine_getter(data_t, tq);
-machine_getter(data_t, max_error);
-machine_getter(data_t, error);
-machine_getter(point_t *, zero);
-machine_getter(point_t *, offset);
-machine_getter(point_t *, setpoint);
-machine_getter(point_t *, position);
-machine_getter(data_t, rt_pacing);
-
-
+machine_getter(data_t, A, A);
+machine_getter(data_t, tq, tq);
+machine_getter(data_t, max_error, max_error);
+machine_getter(data_t, error, error);
+machine_getter(point_t *, zero, zero);
+machine_getter(point_t *, offset, offset);
+machine_getter(point_t *, setpoint, setpoint);
+machine_getter(point_t *, position, position);
+machine_getter(data_t, rt_pacing, rt_pacing);
 
 // STATIC FUNCTIONS
 
@@ -257,28 +262,29 @@ static void on_connect(struct mosquitto *mqt, void *obj, int rc) {
   m->connecting = 0;
 }
 
-static void on_message(struct mosquitto *mqt, void *ud, const struct mosquitto_message *msg) {
+static void on_message(struct mosquitto *mqt, void *ud,
+                       const struct mosquitto_message *msg) {
   machine_t *m = (machine_t *)ud;
   // subtopic is the last word in the MQTT topic
-  // strrchr returns a pointer to the last occourrence of a given char
+  // strrchr returns a pointer to the last occourrence of a given char '/'
   char *subtopic = strrchr(msg->topic, '/') + 1;
 
-  eprintf("<- message: %s:%s\n", msg->topic, (char *)msg->payload);
-  mosquitto_message_copy(m->msg, msg); // to be available if needed after the callback end
+  eprintf("<- message: %s: %s\n", msg->topic, (char *)msg->payload);
+  mosquitto_message_copy(
+      m->msg, msg); // to be available if needed after the callback end
 
-  // if the last topic part is "error", then take it as a single value
-  if (strcmp(subtopic, "error") == 0 ) {
+  // if the last topic part is "error", then take it as a single value and SET
+  // it
+  if (strcmp(subtopic, "error") == 0) {
     m->error = atof(msg->payload);
-  }
-  else if (strcmp(subtopic, "position") == 0) {
-    // we have to parse a string like "123.4,100.0,-98" into three
+  } else if (strcmp(subtopic, "position") == 0) {
+    // we have to parse a string (PAYLOAD) like "123.4,100.0,-98" into three
     // coordinate values x, y, and z
     char *nxt = msg->payload;
     point_set_x(m->position, strtod(nxt, &nxt));
-    point_set_y(m->position, strtod(nxt+1, &nxt));
-    point_set_z(m->position, strtod(nxt+1, &nxt));
-  }
-  else {
-    eprintf("Got unexpected message on %s\n", msg->topic);
+    point_set_y(m->position, strtod(nxt + 1, &nxt));
+    point_set_z(m->position, strtod(nxt + 1, &nxt));
+  } else {
+    eprintf("Got unexpected message on %s\n", subtopic);
   }
 }

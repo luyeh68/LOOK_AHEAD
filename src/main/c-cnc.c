@@ -18,16 +18,16 @@
 
 
 /* 
-x HW2 completion:
+HW2 completion:
  load a file one line at a time and print out the result of the interpolation for G00 and possibly for G01, G02 and G03 commands: in particular it creates some blocks of G-code (loading the G-code file and running it) and for a line or arc move make a loop stepping in time with the given sampling time and print out a table of time, lambda, feedrate, x, y, z.
  We parse the block, for every block we calculate the velocity profile then 
- at every time step we calculate the lambda (t = currentTime = time elapsed since the beginning of each block). THen we interpolate for calculating the desired position of 3 axes which will be sent via MQTT to the machine (machine_sync) */
+ at every time step we calculate the lambda (t = currentTime = time elapsed since the beginning of each block). THen we interpolate for calculating the desired position of 3 axes which will be sent via MQTT to the machine (machine_sync)
+*/
 
-
-/*Our code is going to work as a publisher publishing the setPoints (our machine acts a subscriber): we are going to publish on one single topic the setPoint holding the values for x, y, z separated by commas*/  
-
+/*
+Our code is going to work as a publisher publishing the setPoints (our machine acts a subscriber): we are going to publish on one single topic the setPoint holding the values for x, y, z separated by commas
+*/  
 #define eprintf(...) fprintf(stderr, __VA_ARGS__)
-
 
 #if 1
 int main(int argc, char const *argv[]) {
@@ -40,19 +40,23 @@ int main(int argc, char const *argv[]) {
   ccnc_state_t cur_state = CCNC_STATE_INIT;
   do {
     cur_state = ccnc_run_state(cur_state, &state_data);
-    wait_next(machine_tq(state_data.machine) * 1E9 / machine_rt_pacing(state_data.machine)); //waiting for the next occurence of a time step multiple in order to go to the run the next machine state
+    wait_next(machine_tq(state_data.machine) * 1E9 / machine_rt_pacing(state_data.machine)); //waiting for the next occurence of a time step multiple in order to run the next machine state
   } while (cur_state != CCNC_STATE_STOP);
   ccnc_run_state(cur_state, &state_data);
   return 0;
 }
 
-// AS EXERCISE WE CAN try to:
-// *make a chart / 3D chart of run.csv file to plot the nominal trajectory and see if it is actually what we expected
+
+//==============================================================================
+// AS an EXERCISE WE CAN TRY to:
+// * make a chart / 3D chart of run.csv file to plot the nominal trajectory and see if it is actually what we expected
 // * get/save data from Simulink to the workspace
-// * plot the differences between the setPoint (nominal positions) sent by the CNC exe (CNC controller) to Simulink and the actual positions reached by the simulator in Simulink
+// * plot the differences between the setPoint (nominal positions) sent by the build/c-cnc exe (CNC controller) to Simulink and the actual positions reached by the simulator in Simulink
+//==============================================================================
 
+// RAPID MOTION: stop rapid motion whenever the actual error becomes smaller than the max_error
 
-#else // NAIF APPROACH
+#else // NAIVE APPROACH
 int main(int argc, char const *argv[]) {
   point_t *sp = NULL;
   block_t *b = NULL;
@@ -100,12 +104,10 @@ int main(int argc, char const *argv[]) {
       printf("%lu,%f,%f,%f,%f,%f,%f,%f,%f\n", block_n(b), t, tt,
         lambda, lambda * block_length(b), f,
         point_x(sp), point_y(sp), point_z(sp));
-      machine_sync(machine); // takes the current setPoint set by blockInterpolate and sends it via MQTT to the machine itself
+      machine_sync(machine, 0); // takes the current setPoint set by blockInterpolate and sends it via MQTT to the machine itself
       wait_next(5e6);
     }
   }
-
-
   machine_free(machine);
   program_free(p);
   return 0;

@@ -11,3 +11,10 @@
 //  |_____\___/ \___/|_|\_\     \__,_|_| |_|\___|\__,_|\__,_|
 //
 // Implement here block-related functions for look-ahead
+
+#ifndef BLOCK_LA_H
+#define BLOCK_LA_H
+
+#include "block.h"
+
+#endif // BLOCK_LA_H

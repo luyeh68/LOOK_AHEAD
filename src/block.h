@@ -54,7 +54,7 @@ int block_parse(block_t *b);
 data_t block_lambda(const block_t *b, data_t time, data_t *v);
 
 // Interpolate lambda over three axes: returns x, y, z at time t
-point_t *block_interpolate(block_t *b, data_t lambda); // linear and arc interpolation
+point_t *block_interpolate(const block_t *b, data_t lambda); // linear and arc interpolation
 
 
 // GETTERS =====================================================================

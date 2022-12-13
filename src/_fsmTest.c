@@ -174,7 +174,7 @@ ccnc_state_t ccnc_do_idle(ccnc_state_data_t *data) {
   // wait for keypress (no need to press ANYMORE)
   key = getchar(); //reads a single char on the terminal but it's executed only when it gets a newline (pressing ENTER)
 
-  // reset initial terminal setings (re-enabling caching mechanism)
+  // reset initial terminal settings (re-enabling caching mechanism)
   tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
   switch (key)
   {
@@ -220,7 +220,7 @@ ccnc_state_t ccnc_do_stop(ccnc_state_data_t *data) {
   // * disconnect machine
   // * free resources
   eprintf("Clean up ...");
-  signal(SIGINT, SIG_DFL); //DISABLING THE SIGNAL HANDLER: resetting the default signal handler so stop execution when getting a SINGINT so a CRTL+C
+  signal(SIGINT, SIG_DFL); //DISABLING THE SIGNAL HANDLER: resetting the default signal handler so stop execution when getting a SIGINT so a CRTL+C
   if (data->machine) // NOT NULL so it's been initialized
   {
     machine_disconnect(data->machine);
@@ -374,7 +374,7 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
   data->t_tot += tq;
   if (data->t_blk >= block_dt(b) + tq / 2.0) // end of the block is reached
   {
-    // tq / 2.0: for taking care of rounding errors for small numbers having a finite/limited precision
+    // tq / 2.0: for taking care of rounding errors for small F.P. numbers having a finite/limited precision
     next_state = CCNC_STATE_LOAD_BLOCK;
     goto next_block;
   }
