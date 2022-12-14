@@ -25,12 +25,12 @@ Functions and types have been generated with prefix "ccnc_"
 // header if you need
 typedef struct {
   char *ini_file;           // INI file
-  char const *prog_file;    // G-code program file
+  char const *prog_file;    // G-code program filename
   machine_t *machine;       // machine object
   program_t *prog;          // program object
   data_t t_tot;             // total program timer
   data_t t_blk;             // block timer
-} ccnc_state_data_t;        //struct containing all info we need in the different states
+} ccnc_state_data_t;        // struct containing all info we need in the different states
 
 // NOTHING SHALL BE CHANGED AFTER THIS LINE!
 

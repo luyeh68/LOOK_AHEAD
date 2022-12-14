@@ -158,7 +158,7 @@ int machine_connect(machine_t *m, machine_on_message callback) {
 
 int machine_sync(machine_t *m, int rapid) {
   assert(m);
-  //  remember that mosquitto_loop must be called in order to comms to happen
+  //  remember that mosquitto_loop must be called in order to update what's happening
   if (mosquitto_loop(m->mqt, 0, 1) != MOSQ_ERR_SUCCESS) {
     perror("mosquitto_loop error");
     return 1;
@@ -181,23 +181,23 @@ int machine_listen_start(machine_t *m) {
   assert(m);
   // subscribe to the topic where the machine publishes to
   if (mosquitto_subscribe(m->mqt, NULL, m->sub_topic, 0) != MOSQ_ERR_SUCCESS) {
-    perror("Could not subscribe to the subtopic");
+    perror("Could not subscribe to the topic");
     return 1;
   }
   // in order NOT to trigger an end of block (current error reset at the
   // beginning of each rapid motion)
   m->error = m->max_error * 10.0;
-  eprintf("Subscribed to subtopic %s\n", m->sub_topic);
+  eprintf("Subscribed to the topic %s\n", m->sub_topic);
   return 0;
 }
 
 int machine_listen_stop(machine_t *m) {
   assert(m);
   if (mosquitto_unsubscribe(m->mqt, NULL, m->sub_topic) != MOSQ_ERR_SUCCESS) {
-    perror("Could not unsubscribe from the subtopic");
+    perror("Could not unsubscribe from the topic");
     return 1;
   }
-  eprintf("Unsubscribed from the subtopic %s\n", m->sub_topic);
+  eprintf("Unsubscribed from the topic %s\n", m->sub_topic);
   return 0;
 }
 
@@ -250,7 +250,7 @@ static void on_connect(struct mosquitto *mqt, void *obj, int rc) {
     eprintf("-> Connected to %s:%d\n", m->broker_address, m->broker_port);
     // subscribe
     if (mosquitto_subscribe(mqt, NULL, m->sub_topic, 0) != MOSQ_ERR_SUCCESS) {
-      perror("Could not subscribe to the subtopic");
+      perror("Could not subscribe to the topic");
       exit(EXIT_FAILURE);
     }
   }

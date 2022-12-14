@@ -20,7 +20,7 @@ The finite state machine has:
 #include <signal.h>
 static int _exit_request = 0; 
 static void signal_handler(int signal) {
-  if (signal == SIGINT) //pressing crtl+C
+  if (signal == SIGINT) //pressing ctrl+C
   {
     _exit_request = 1;
     syslog(LOG_WARNING, "[FSM] SIGINT transition to stop");

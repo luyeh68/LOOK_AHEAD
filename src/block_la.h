@@ -17,4 +17,8 @@
 
 #include "block.h"
 
+data_t relativeAngle(const block_t *block);
+
+
+
 #endif // BLOCK_LA_H

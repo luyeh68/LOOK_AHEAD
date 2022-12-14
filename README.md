@@ -2,8 +2,8 @@
 
 ### Aim of the course: 
 We have to write a SW/CNC controller for controlling a 3 axes machine (machine tool) (of the digital twin (simulator) of the machine itself).
-This C-program will talk via ZeroMQ to the simulator in Simulink (Simscape Multibody). We had also seen how to deploy this SW into a micro-controller (CROSS-COMPILATION) so how to compile C on our PCs to be run on a different archictecture (i. e. BeagleBone, Raspberry Pi, embedded system, ...) and that micro-controller has been be also connected to the same simulator via ZeroMQ.
-Reagarding the cross-compilation will be used Docker for cross-compiling .exe files able to run on BeagleBone Black.
+This C-program will talk via ZeroMQ to the simulator in Simulink (Simscape Multibody). We had also seen how to deploy this SW into a micro-controller (CROSS-COMPILATION) so how to compile C on our PCs to be run on a different archictecture (i. e. BeagleBone, Raspberry Pi, embedded system, ...) and that micro-controller has been also connected to the same simulator via ZeroMQ.
+Regarding the cross-compilation will be used Docker for cross-compiling .exe files able to run on BeagleBone Black.
 
 In particular we had done the following during the course:
 - taken the tool properties, calculating the machining parameters (feed and spindle rate) 
@@ -12,7 +12,7 @@ In particular we had done the following during the course:
   1. reads a G-code block file or line of G-code: _off-line_
   2. splits a G-code line into something meaningful, extracting INFO: position, speeds, ... (_parsing a part-program (off-line)_)
   3. _Off-line_ calculation of the (feedrate) velocity profiles (_profiling_) for each command base on the extracted info above
-  4. _ON-LINE_ 3D-coordinates motion/position interpolation of the axes for each block (velocity profiles trajectory projection to the axes) from the initial to the final position to        be sent via **MQTT**, time after time, to the digital twin CNC machine axes drivers in run-time.
+  4. _ON-LINE_ 3D-coordinates motion/position interpolation of the axes for each block (velocity profiles trajectory projection to the axes) from the initial to the final position to be sent via **MQTT**, time after time, to the digital twin CNC machine axes drivers in run-time.
 - in the end we needed a Program Object that was able to:
   1. load the file containing G-code
   2. create an ordered linked list fashion blocks connection
@@ -26,7 +26,7 @@ __N.B.__ For every block the constraints on the velocity profiles were:
   - NO limitation of jerks (derivative of acceleration): dangerous for vibrating behaviours (jerk = infinite acceleration for corners in velocity profiles)
   - going down to 0 speed at each corner (we cannot follow a corner with constant speed otherwise the required acceleration should be infinity (**mechanically non-feasible**))
 
-We also used an F.S.M APPROACH used for implementing complex logics in controlling HW. 
+We also used a F.S.M APPROACH used for implementing complex logics in controlling HW. 
 F.S.M is a design concept when writing SW where the system we are programming is going to lay (at every time) in a given state or configuration and the possible n° of states is LIMITED / finite.
 
 ------------------------------------------------------------

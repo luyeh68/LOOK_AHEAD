@@ -89,12 +89,14 @@ ccnc_state_t ccnc_do_init(ccnc_state_data_t *data) {
   // * in case of errors, transition to stop
   // * print software version
   // * connect with the machine
-  // * load and parse the G-code file
-  // * print G-code file
+  // * load and parse the G-code program file
+  // * print G-code program file
 
+  // SW version
   eprintf("C-CNC ver. %s, %s build\n", VERSION, BUILD_TYPE);
   data->machine = machine_new(data->ini_file);
 
+  // connect with the machine
   if (!data->machine) {
     next_state = CCNC_STATE_STOP;
     goto next_state;
@@ -105,6 +107,7 @@ ccnc_state_t ccnc_do_init(ccnc_state_data_t *data) {
     goto next_state;
   }
 
+  // load and parse G-code file
   data->prog = program_new(data->prog_file);
   if (!data->prog) {
     next_state = CCNC_STATE_STOP;
@@ -117,6 +120,7 @@ ccnc_state_t ccnc_do_init(ccnc_state_data_t *data) {
   }
   // if available, calculate here the look-ahead
 
+  // print G-code file
   eprintf("Parsed the program %s\n", data->prog_file);
   program_print(data->prog, stderr);
 
@@ -141,7 +145,7 @@ next_state:
 
 // Function to be executed in state idle
 // valid return states: CCNC_NO_CHANGE, CCNC_STATE_IDLE, CCNC_STATE_LOAD_BLOCK,
-// CCNC_STATE_STOP SIGINT triggers an emergency transition to stop
+// CCNC_STATE_STOP (SIGINT triggers an emergency transition to stop)
 ccnc_state_t ccnc_do_idle(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_NO_CHANGE;
   char key;
@@ -241,7 +245,8 @@ ccnc_state_t ccnc_do_load_block(ccnc_state_data_t *data) {
   // * load next block
 
   block_t *b = program_next(data->prog);
-  if (!b) {
+  if (!b) // if last block, we transition back to IDLE 
+  {
     next_state = CCNC_STATE_IDLE;
     goto next_state;
   }
@@ -296,7 +301,7 @@ ccnc_state_t ccnc_do_no_motion(ccnc_state_data_t *data) {
 
 // Function to be executed in state rapid_motion
 // valid return states: CCNC_NO_CHANGE, CCNC_STATE_LOAD_BLOCK,
-// CCNC_STATE_RAPID_MOTION SIGINT triggers an emergency transition to stop
+// CCNC_STATE_RAPID_MOTION (SIGINT triggers an emergency transition to stop)
 ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_NO_CHANGE;
   data_t tq = machine_tq(data->machine);
@@ -313,8 +318,9 @@ ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
   // the actual ERROR (if no machine attached we will wait forever because the
   // error won't become 0 or small enough)
 
+  // rapid motion finished
   if (machine_error(data->machine) < machine_max_error(data->machine)) {
-    next_state = CCNC_STATE_LOAD_BLOCK;
+    next_state = CCNC_STATE_LOAD_BLOCK; 
   }
 
   // CTRL+C pressed --> exiting from rapid motion
@@ -341,7 +347,7 @@ ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
 
 // Function to be executed in state interp_motion
 // valid return states: CCNC_NO_CHANGE, CCNC_STATE_LOAD_BLOCK,
-// CCNC_STATE_INTERP_MOTION SIGINT triggers an emergency transition to stop
+// CCNC_STATE_INTERP_MOTION (SIGINT triggers an emergency transition to stop)
 ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_NO_CHANGE;
   data_t tq = machine_tq(data->machine);
