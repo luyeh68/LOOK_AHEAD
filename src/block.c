@@ -47,7 +47,6 @@ typedef struct block {
 
 // STATIC FUNCTIONS (for internal use only) ====================================
 static int block_set_fields(block_t *b, char cmd, char *arg);
-static point_t *point_zero(const block_t *b);
 static void block_compute(const block_t *b);
 static int block_arc(block_t *b);
 static data_t quantize(data_t t, data_t tq, data_t *dq);
@@ -406,7 +405,7 @@ static int block_arc(block_t *b) {
 
 // Return a reliable previous point, i.e. machine zero if this is the first
 // block (no memory leaks)
-static point_t *point_zero(const block_t *b) {
+point_t *point_zero(const block_t *b) {
   assert(b);
   return b->prev ? b->prev->target : machine_zero(b->machine);
 }

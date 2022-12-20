@@ -1,3 +1,7 @@
+# my exe
+*.app
+# ------
+
 *.o
 *.a
 *.slxc
@@ -25,3 +29,4 @@ log*.txt
 /MATLAB/mqtt_sub.m
 /MATLAB/simple_axis_3.slx
 /MATLAB/simple_axis_data.m
+

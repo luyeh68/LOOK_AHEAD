@@ -17,8 +17,10 @@
 
 #include "block.h"
 
-data_t relativeAngle(const block_t *block);
+// Scalar Product between 2 CONSECUTIVE vectors given the respective initial and final point for each vector
+data_t dot_product(const point_t *p1, const point_t *p2, const point_t *p3);
 
-
+// Compute the cosine of the angle between each pair of consecutive blocks 
+data_t cosAlpha(const block_t *b);
 
 #endif // BLOCK_LA_H

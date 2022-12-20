@@ -1,10 +1,10 @@
-//   ____  _            _    
+//   ____  _            _
 //  | __ )| | ___   ___| | __
 //  |  _ \| |/ _ \ / __| |/ /
-//  | |_) | | (_) | (__|   < 
+//  | |_) | | (_) | (__|   <
 //  |____/|_|\___/ \___|_|\_\
-                          
-//   _                _               _                    _ 
+
+//   _                _               _                    _
 //  | |    ___   ___ | | __      __ _| |__   ___  __ _  __| |
 //  | |   / _ \ / _ \| |/ /____ / _` | '_ \ / _ \/ _` |/ _` |
 //  | |__| (_) | (_) |   <_____| (_| | | | |  __/ (_| | (_| |
@@ -14,19 +14,62 @@
 
 #include "block_la.h"
 
-//  _   _                 _____          _                       
-// | \ | | _____      __ |  ___|__  __ _| |_ _   _ _ __ ___  ___ 
+//  _   _                 _____          _
+// | \ | | _____      __ |  ___|__  __ _| |_ _   _ _ __ ___  ___
 // |  \| |/ _ \ \ /\ / / | |_ / _ \/ _` | __| | | | '__/ _ \/ __|
 // | |\  |  __/\ V  V /  |  _|  __/ (_| | |_| |_| | | |  __/\__ \
 // |_| \_|\___| \_/\_/   |_|  \___|\__,_|\__|\__,_|_|  \___||___/
 
-data_t relativeAngle(const block_t* block, const block_t *next)
+data_t dot_product(const point_t *p1, const point_t *p2, const point_t *p3) {
+  return fabs((point_x(p2) - point_x(p1)) * (point_x(p3) - point_x(p2)) +
+              (point_y(p2) - point_y(p1)) * (point_y(p3) - point_y(p2)) +
+              (point_z(p2) - point_z(p1)) * (point_z(p3) - point_z(p2)));
+}
+
+data_t cosAlpha(const block_t *b) 
 {
-  data_t a, b, c;
-  a = next->length;
-  b = point_x(next->target) - point_x(block->target);
-  c = point_y(next->target) - point_y(block->target);
-  return (pow(a, 2) + pow(b ,2) - pow(c, 2)) / (2 * a * b);
+  assert(b);
+  data_t cos_alpha;
+  point_t *p1 = point_zero(b);
+  point_t *p2 = block_target(b);
+  point_t *p3 = block_target(block_next(b));
+  point_t *center = block_center(b);
+  point_t *center_next = block_center(block_next(b));
+
+  data_t v1_lin = point_dist(p1, p2);
+  data_t v2_lin = point_dist(p2, p3);
+  data_t v1_arc = point_dist(center, p2);
+  data_t v2_arc = point_dist(p2, center_next);
+
+  // LINEAR BLOCK -- LINEAR BLOCK
+  if (block_type(b) == LINE && block_type(block_next(b)) == LINE)
+    cos_alpha = dot_product(p1, p2, p3) / (v1_lin * v2_lin);
+
+  // ARC_CW or ARC_CCW BLOCK -- LINEAR BLOCK
+  else if ((block_type(b) == ARC_CW || block_type(b) == ARC_CCW) &&
+           block_type(block_next(b)) == LINE) {
+    data_t dot = dot_product(center, p1, p2);
+    data_t beta = acos(dot / (v1_arc * v2_lin)); //radiants
+    cos_alpha = cos(M_PI / 2.0 - beta);
+  }
+
+  // LINEAR BLOCK -- ARC_CW or ARC_CCW BLOCK
+  else if (block_type(b) == LINE && (block_type(block_next(b)) == ARC_CW ||
+                                     block_type(block_next(b)) == ARC_CCW)) {
+    data_t dot = dot_product(p1, p2, center_next);
+    data_t beta = acos(dot / (v1_lin * v2_arc)); //radiants
+    cos_alpha = cos(M_PI / 2.0 - beta);
+  }
+
+  // all 4 combinations of ARC_CW and ARC_CCW blocks
+  /*else if ((block_type(b) >= ARC_CW && block_type(b) <= ARC_CCW) && (block_type(block_next(b)) == ARC_CW && block_type(block_next(b)) <= ARC_CCW ))*/
+  else
+  {
+    data_t dot = dot_product(center, p2, center_next);
+    cos_alpha = dot / (v1_arc * v2_arc);
+  }
+
+  return cos_alpha;
 }
 
 //   _____ _____ ____ _____   __  __       _
@@ -47,6 +90,11 @@ int main() {
   b3 = block_new("N30 G01 Y200", b2, cfg);
   block_parse(b3);
 
+  // TEST FOR LOOK AHEAD
+  data_t res = cosAlpha(b1);
+
+  printf("cosAlpha = %f\n", res);
+
   block_print(b1, stdout);
   block_print(b2, stdout);
   block_print(b3, stdout);
@@ -57,5 +105,3 @@ int main() {
   return 0;
 }
 #endif
-
-                                                               

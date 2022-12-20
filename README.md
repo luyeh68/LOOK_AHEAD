@@ -46,7 +46,7 @@ the strategy is to keep the speed at corners constant if they are perfectly alig
 The _main idea_ is as follows:
 - If the corner is NOT a corner so the 2 consecutive segments are perfectly collinear, v_corner = feedrate of blocks.
 - If there is an angle, we have to decrease the velocity in the corner according to the angle: for any angle larger than 45° v_corner = 0 while for angles <= 45°, v_corner linear increases up to the nominal feedrate.
-
+ 
 Instead of having sharp corners in the velocity profiles we have rounded corners so to impose a bound on the jerks.
 
 So we can see how many segments we can lump together in a single segment possibly reducing the speed at corner if the angle is not too sharp

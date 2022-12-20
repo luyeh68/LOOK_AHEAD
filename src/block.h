@@ -31,7 +31,6 @@ typedef enum {
   NO_MOTION
 } block_type_t;
 
-
 //   _____                 _   _                 
 //  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___ 
 //  | |_ | | | | '_ \ / __| __| |/ _ \| '_ \/ __|
@@ -56,6 +55,8 @@ data_t block_lambda(const block_t *b, data_t time, data_t *v);
 // Interpolate lambda over three axes: returns x, y, z at time t
 point_t *block_interpolate(const block_t *b, data_t lambda); // linear and arc interpolation
 
+// Setting the point as the target point of each block
+point_t *point_zero(const block_t *b);
 
 // GETTERS =====================================================================
 
