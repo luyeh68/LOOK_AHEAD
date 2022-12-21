@@ -69,4 +69,4 @@ What's matter/important for the test of the LookAhead-approach: __the nominal se
 
 ![LookAheadImplementation](https://user-images.githubusercontent.com/61516812/200802657-44d03095-86a1-4025-984c-ad225bf411c3.JPG)
 
-For the implementation of the Look-Ahead remember that we have to plot the feedrate profile (_NO need of comparison w.r.t actual positions of the machine_) as function of time.
+For the implementation of the Look-Ahead remember that we have to plot the feedrate profile (_NO need of comparison w.r.t actual positions of the machine_) as function of time. 
