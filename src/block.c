@@ -21,6 +21,7 @@ typedef struct {
   data_t dt_1, dt_m,
       dt_2;  // trapezoidal acceleration, maintenance and deceleration times
   data_t dt; // total time
+  data_t initialVel, finalVel; // initial and final velocity (LA)
 } block_profile_t;
 
 // Block object structure

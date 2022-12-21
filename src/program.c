@@ -141,8 +141,11 @@ void program_reset(program_t *p) {
 
 // GETTERS =====================================================================
 
-#define program_getter(typ, par, name) \
-typ program_##name(const program_t *p) { assert(p); return p->par; }
+#define program_getter(typ, par, name)                                         \
+  typ program_##name(const program_t *p) {                                     \
+    assert(p);                                                                 \
+    return p->par;                                                             \
+  }
 
 program_getter(char *, filename, filename);
 program_getter(block_t *, first, first);
