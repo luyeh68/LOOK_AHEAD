@@ -1,6 +1,6 @@
 //   ____                                      
 //  |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___  
-//  | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \ 
+//  | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \
 //  |  __/| | | (_) | (_| | | | (_| | | | | | |
 //  |_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_|
 //                   |___/                     
@@ -11,6 +11,50 @@
 //  |_____\___/ \___/|_|\_\     \__,_|_| |_|\___|\__,_|\__,_|
 
 #include "program_la.h"
+
+//  _   _                 _____          _
+// | \ | | _____      __ |  ___|__  __ _| |_ _   _ _ __ ___  ___
+// |  \| |/ _ \ \ /\ / / | |_ / _ \/ _` | __| | | | '__/ _ \/ __|
+// | |\  |  __/\ V  V /  |  _|  __/ (_| | |_| |_| | | |  __/\__ \
+// |_| \_|\___| \_/\_/   |_|  \___|\__,_|\__|\__,_|_|  \___||___/
+
+
+// =============================================================================
+// * int program_look_ahead(program_t *p);
+
+void settingVel_Zero(const program_t *p)
+{
+  assert(p);
+  block_t *b = program_first(p);
+  while(b)
+  {
+    if(maintenanceVel(b) == 0.0)
+      b->prof->finalVel = 0.0;
+    b = block_next(b);
+  }
+  // b == NULL so (b->prev) was the last segment/block
+  b->prev->prof->finalVel = 0.0;
+}
+
+void guards_G00(const program_t *p)
+{
+  assert(p);
+  block_t *b, *iterator = program_first(p);
+  if(block_type(iterator) == RAPID)
+  {
+    b = block_next(iterator);
+    while(b)
+    {
+      if(block_type(b) == RAPID)
+      {
+        iterator->prof->initialVel = 0.0;
+        b->prof->finalVel = 0.0;
+        iterator = b;
+      }
+      b = block_next(b);
+    } // b = NULL, iterator = last block of program
+  }
+}
 
 //   _____ _____ ____ _____   __  __       _
 //  |_   _| ____/ ___|_   _| |  \/  | __ _(_)_ __
