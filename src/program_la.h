@@ -12,8 +12,14 @@
 //
 // Add here program-related functions for implementing the look-ahead behaviour
 
+#ifndef PROGRAM_LA_H
+#define PROGRAM_LA_H
+
 #include "program.h"
 
 // * For example:
 // * int program_look_ahead(program_t *p);
 
+
+
+#endif // PROGRAM_LA_H
