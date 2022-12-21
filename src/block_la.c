@@ -3,7 +3,6 @@
 //  |  _ \| |/ _ \ / __| |/ /
 //  | |_) | | (_) | (__|   <
 //  |____/|_|\___/ \___|_|\_\
-
 //   _                _               _                    _
 //  | |    ___   ___ | | __      __ _| |__   ___  __ _  __| |
 //  | |   / _ \ / _ \| |/ /____ / _` | '_ \ / _ \/ _` |/ _` |
@@ -19,15 +18,14 @@
 // |  \| |/ _ \ \ /\ / / | |_ / _ \/ _` | __| | | | '__/ _ \/ __|
 // | |\  |  __/\ V  V /  |  _|  __/ (_| | |_| |_| | | |  __/\__ \
 // |_| \_|\___| \_/\_/   |_|  \___|\__,_|\__|\__,_|_|  \___||___/
-
-// =============================================================================
+// ============================================================================
 
 //  ____ _____ _____ ____    _ 
 // / ___|_   _| ____|  _ \  / |
 // \___ \ | | |  _| | |_) | | |
 //  ___) || | | |___|  __/  | |
 // |____/ |_| |_____|_|     |_|
-                      
+
 data_t dot_product(const point_t *p1, const point_t *p2, const point_t *p3) {
   assert(p1 && p2 && p3);
   return fabs((point_x(p2) - point_x(p1)) * (point_x(p3) - point_x(p2)) +
@@ -35,7 +33,8 @@ data_t dot_product(const point_t *p1, const point_t *p2, const point_t *p3) {
               (point_z(p2) - point_z(p1)) * (point_z(p3) - point_z(p2)));
 }
 
-data_t cosAlpha(const block_t *b) {
+data_t cosAlpha(const block_t *b) 
+{
   assert(b);
   data_t cos_alpha;
   point_t *p1 = point_zero(b);
@@ -57,7 +56,7 @@ data_t cosAlpha(const block_t *b) {
   else if ((block_type(b) == ARC_CW || block_type(b) == ARC_CCW) &&
            block_type(block_next(b)) == LINE) {
     data_t dot = dot_product(center, p1, p2);
-    data_t beta = acos(dot / (v1_arc * v2_lin)); // radiants
+    data_t beta = acos(dot / (v1_arc * v2_lin)); //radiants
     cos_alpha = cos(M_PI / 2.0 - beta);
   }
 
@@ -65,16 +64,16 @@ data_t cosAlpha(const block_t *b) {
   else if (block_type(b) == LINE && (block_type(block_next(b)) == ARC_CW ||
                                      block_type(block_next(b)) == ARC_CCW)) {
     data_t dot = dot_product(p1, p2, center_next);
-    data_t beta = acos(dot / (v1_lin * v2_arc)); // radiants
+    data_t beta = acos(dot / (v1_lin * v2_arc)); //radiants
     cos_alpha = cos(M_PI / 2.0 - beta);
   }
 
   // all 4 combinations of ARC_CW and ARC_CCW blocks
-  else {
+  else
+  {
     data_t dot = dot_product(center, p2, center_next);
     cos_alpha = dot / (v1_arc * v2_arc);
   }
-
   return cos_alpha;
 }
 
@@ -82,29 +81,53 @@ data_t maintenanceVel(const block_t *b)
 {
   assert(b);
   data_t vm;
-  block_type_t condition = block_type(b) >= LINE && block_type(b) <= ARC_CCW;
   
-  if(condition == LINE) 
+  // LINEAR block
+  if(block_type(b) == LINE)
     vm = b->feedrate;
-  else
-    vm = sqrt(machine_A(b->machine) * block_r(b)) * 60; // [mm/min]
   
+  // CLOCK or COUNTERCLOCKWISE block
+  else if(block_type(b) == ARC_CW || block_type(b) == ARC_CCW)
+    vm = sqrt(machine_A(b->machine) * block_r(b)) * 60; // [mm/min]
+
   return vm;
 }
 
-data_t finalVel(const block_t *b, data_t cos_alpha) 
+data_t finalVel(const block_t *b)
 {
-  assert(b && block_next(b));
-  data_t vm = maintenanceVel(b);
-  data_t vm_next = maintenanceVel(block_next(b));
+  assert(b);
+  data_t vm, vm_next, cos_alpha;
+  
+  vm = maintenanceVel(b);
+  vm_next = maintenanceVel(block_next(b));
+  cos_alpha = cosAlpha(b);
+
   return (vm + vm_next) / 2.0 * cos_alpha;
 }
 
 data_t initialVel(const block_t *b)
 {
   assert(b);
-  return finalVel(b->prev);
+  data_t vi;
+  if(b->prev)
+    vi = finalVel(b->prev);
+
+  return vi;
 }
+
+//  ____ _____ _____ ____    ____  
+// / ___|_   _| ____|  _ \  |___ \ 
+// \___ \ | | |  _| | |_) |   __) |
+//  ___) || | | |___|  __/   / __/ 
+// |____/ |_| |_____|_|     |_____|
+                                 
+
+//  ____ _____ _____ ____    _____ 
+// / ___|_   _| ____|  _ \  |___ / 
+// \___ \ | | |  _| | |_) |   |_ \ 
+//  ___) || | | |___|  __/   ___) |
+// |____/ |_| |_____|_|     |____/ 
+                                 
 
 //   _____ _____ ____ _____   __  __       _
 //  |_   _| ____/ ___|_   _| |  \/  | __ _(_)_ __
