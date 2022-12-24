@@ -1,10 +1,10 @@
-//   ____                                      
-//  |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___  
+//   ____
+//  |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___
 //  | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \
 //  |  __/| | | (_) | (_| | | | (_| | | | | | |
 //  |_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_|
-//                   |___/                     
-//   _                _               _                    _ 
+//                   |___/
+//   _                _               _                    _
 //  | |    ___   ___ | | __      __ _| |__   ___  __ _  __| |
 //  | |   / _ \ / _ \| |/ /____ / _` | '_ \ / _ \/ _` |/ _` |
 //  | |__| (_) | (_) |   <_____| (_| | | | |  __/ (_| | (_| |
@@ -18,43 +18,73 @@
 // | |\  |  __/\ V  V /  |  _|  __/ (_| | |_| |_| | | |  __/\__ \
 // |_| \_|\___| \_/\_/   |_|  \___|\__,_|\__|\__,_|_|  \___||___/
 
-
 // =============================================================================
 // * int program_look_ahead(program_t *p);
 
-
-void settingVel_Zero(const program_t *p)
-{
-  assert(p);
-  block_t *b = program_first(p);
-  while(b)
-  {
-    if(maintenanceVel(b) == 0.0)
-      b->prof->finalVel = 0.0;
-    b = block_next(b);
-  }
-  // b == NULL so (b->prev) was the last segment/block
-  b->prev->prof->finalVel = 0.0;
-}
-
-void guards_G00(const program_t *p)
-{
+void guards_G00(const program_t *p) {
   assert(p);
   block_t *b, *iterator = program_first(p);
-  if(block_type(iterator) == RAPID)
-  {
+  if (block_type(iterator) == RAPID) {
     b = block_next(iterator);
-    while(b)
+    while (b) 
     {
-      if(block_type(b) == RAPID)
-      {
+      if (block_type(b) == RAPID) {
         iterator->prof->initialVel = 0.0;
         b->prof->finalVel = 0.0;
         iterator = b;
       }
+      if (maintenanceVel(b) == 0.0)
+        b->prof->finalVel = 0.0;
       b = block_next(b);
     } // b = NULL, iterator = last block of program
   }
+}
+
+void program_LA_execution(const program_t *p, machine_t *cfg) 
+{
+  assert(p && cfg);
+  block_t *b = program_first(p);
+  data_t MAX_acc = machine_A(cfg) * 3600; // to get [mm/min^2]
+  data_t tq = machine_tq(cfg);
+  
+  // setting initial and final velocities for the whole program p
+  guards_G00(p);
+
+  while(b)
+  {
+    // setting intermediate velocities and initial and final s coordinate for each block b
+    settingVel_sisf(b);
+
+    data_t vi = b->prof->initialVel;
+    data_t vf = b->prof->finalVel;
+    data_t vm = b->prof->maintenanceVel;
+    data_t si = b->prof->s[0];
+    data_t sf = b->prof->s[S_LENGTH-1];
+  
+    // computation of s1 and s2
+    if(vi <= vm)
+      s1s2_Acc(b, MAX_acc, vi, vm, vf, si, sf);
+    else
+      s1s2_Dec(b, MAX_acc, vi, vm, vf, si, sf);
+
+    // reordering the s coordinates for each and every block
+    ascending(b->prof->s, S_LENGTH);
+
+    // change variable from curvilinear abscissa (s) to time (t)
+    timings(b, MAX_acc, vi, vm, vf, si, b->prof->s[1], b->prof->s[2], sf);
+
+    reshaping(b, b->prof->tf, tq);
+
+    // so Now I recalculate the accelerations and decelerations for each block
+    // until now we use the nominal max acceleration (also equal in magnitude to the max deceleration)
+    if(vi <= vm)
+      s1s2_Acc(b, MAX_acc, vi, vm, vf, si, sf);
+    else
+      s1s2_Dec(b, MAX_acc, vi, vm, vf, si, sf);
+
+    b = block_next(b);
+  }
+  
 }
 
 //   _____ _____ ____ _____   __  __       _

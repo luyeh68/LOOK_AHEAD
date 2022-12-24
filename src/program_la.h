@@ -22,11 +22,11 @@
 // * For example:
 // * int program_look_ahead(program_t *p);
 
-// setting speed to 0 if vm_i = 0 or if this is the very last block
-void settingVel_Zero(const program_t *p);
-
 // check for G00 consecutive blocks and set speed to 0
 void guards_G00(const program_t *p);
+
+void program_LA_execution(const program_t *p, machine_t *cfg);
+
 
 
 #endif // PROGRAM_LA_H
