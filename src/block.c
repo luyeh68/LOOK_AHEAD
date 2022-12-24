@@ -14,14 +14,19 @@
 //  |____/ \___|\___|_|\__,_|_|  \__,_|\__|_|\___/|_| |_|___/
 
 // Trapezoidal velocity profile
+#define SIZE 4
 typedef struct {
-  data_t a, d;   // acceleration
+  data_t a, d;   // acceleration, deceleration
   data_t f, l;   // nominal feedrate and length
   data_t fs, fe; // initial and final feedrate
   data_t dt_1, dt_m,
       dt_2;  // trapezoidal acceleration, maintenance and deceleration times
   data_t dt; // total time
+  
+  // LOOK ahead
   data_t initialVel, finalVel; // initial and final velocity (LA)
+  data_t s[SIZE]; // 4 notable points
+  data_t t1, t2, tf;
 } block_profile_t;
 
 // Block object structure
@@ -299,8 +304,7 @@ block_getter(point_t *, target, target);
 // Calculate the integer multiple of sampling time; also provide the rounding
 // amount in dq
 static data_t quantize(data_t t, data_t tq, data_t *dq) {
-  data_t q;
-  q = ((size_t)(t / tq) + 1) * tq;
+  data_t q = ((size_t)(t / tq) + 1) * tq;
   *dq = q - t; // amount of time for rounding up to the next multiple of tq
   return q;
 }
@@ -308,16 +312,14 @@ static data_t quantize(data_t t, data_t tq, data_t *dq) {
 // Calculate the velocity profile
 static void block_compute(const block_t *b) {
   assert(b);
-  data_t A, a, d;
-  data_t dt, dt_1, dt_2, dt_m, dq; // dq = dt - nextTick => dt = n * dq
-  data_t f_m, l;
+  data_t dt, dq; // dq = dt - nextTick => dt = n * dq
 
-  A = b->acc;
-  f_m = b->act_feedrate / 60.0;
-  l = b->length;
-  dt_1 = f_m / A;
-  dt_2 = dt_1;
-  dt_m = l / f_m - (dt_1 + dt_2) / 2.0;
+  data_t A = b->acc;
+  data_t f_m = b->act_feedrate / 60.0; // [mm/s]
+  data_t l = b->length;
+  data_t dt_1 = f_m / A;
+  data_t dt_2 = dt_1;
+  data_t dt_m = l / f_m - (dt_1 + dt_2) / 2.0;
   if (dt_m > 0) { // trapezoidal profile
     dt = quantize(dt_1 + dt_m + dt_2, machine_tq(b->machine), &dq);
     dt_m += dq;
@@ -330,8 +332,8 @@ static void block_compute(const block_t *b) {
     dt_2 += dq;
     f_m = 2 * l / (dt_1 + dt_2);
   }
-  a = f_m / dt_1;
-  d = -(f_m / dt_2);
+  data_t a = f_m / dt_1;
+  data_t d = -(f_m / dt_2);
   // set calculated values in block velocity profile object
   // timings
   b->prof->dt_1 = dt_1;
