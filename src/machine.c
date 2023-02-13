@@ -49,6 +49,7 @@ static void on_message(struct mosquitto *mqt, void *ud,
 // Create a new instance reading data from an INI file
 // If the INI file is not given (NULL), provide sensible default values
 machine_t *machine_new(const char *ini_path) {
+  assert(ini_path);
   machine_t *m = (machine_t *)calloc(1, sizeof(machine_t));
   if (!m) {
     perror("Error creating machine object");
@@ -158,7 +159,8 @@ int machine_connect(machine_t *m, machine_on_message callback) {
 
 int machine_sync(machine_t *m, int rapid) {
   assert(m);
-  //  remember that mosquitto_loop must be called in order to update what's happening
+  //  remember that mosquitto_loop must be called in order to update what's
+  //  happening
   if (mosquitto_loop(m->mqt, 0, 1) != MOSQ_ERR_SUCCESS) {
     perror("mosquitto_loop error");
     return 1;
@@ -285,6 +287,6 @@ static void on_message(struct mosquitto *mqt, void *ud,
     point_set_y(m->position, strtod(nxt + 1, &nxt));
     point_set_z(m->position, strtod(nxt + 1, &nxt));
   } else {
-    eprintf("Got unexpected message on %s\n", subtopic);
+    eprintf("Got unexpected message on %s\n", msg->topic);
   }
 }
