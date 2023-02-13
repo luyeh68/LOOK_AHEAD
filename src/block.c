@@ -14,19 +14,18 @@
 //  |____/ \___|\___|_|\__,_|_|  \__,_|\__|_|\___/|_| |_|___/
 
 // Trapezoidal velocity profile
-#define SIZE 4
 typedef struct {
   data_t a, d;   // acceleration, deceleration
-  data_t f, l;   // nominal feedrate and length
+  data_t f, l;   // actual feedrate and length
   data_t fs, fe; // initial and final feedrate
   data_t dt_1, dt_m,
       dt_2;  // trapezoidal acceleration, maintenance and deceleration times
   data_t dt; // total time
-  
-  // LOOK ahead
-  data_t initialVel, finalVel; // initial and final velocity (LA)
-  data_t s[SIZE]; // 4 notable points
-  data_t t1, t2, tf;
+
+  // ADDITIONS FOR LOOK AHEAD
+  data_t s[4]; // 4 notable points [si, s1, s2, sf]
+  data_t fm;   // maintenance feedrate
+  data_t v_star, s_star;
 } block_profile_t;
 
 // Block object structure
@@ -53,6 +52,7 @@ typedef struct block {
 
 // STATIC FUNCTIONS (for internal use only) ====================================
 static int block_set_fields(block_t *b, char cmd, char *arg);
+static point_t *point_zero(const block_t *b);
 static void block_compute(const block_t *b);
 static int block_arc(block_t *b);
 static data_t quantize(data_t t, data_t tq, data_t *dq);
@@ -230,7 +230,8 @@ data_t block_lambda(const block_t *b, data_t t, data_t *v) {
   data_t d = b->prof->d;
   data_t f = b->prof->f;
 
-  if (t < 0) {
+  if (t < 0) // never happen
+  {
     res = 0.0;
     *v = 0.0;
   } else if (t < dt_1) { // acceleration
@@ -241,7 +242,7 @@ data_t block_lambda(const block_t *b, data_t t, data_t *v) {
     *v = f;
   } else if (t < (dt_1 + dt_m + dt_2)) { // deceleration
     data_t t_2 = dt_1 + dt_m;
-    res = f * dt_1 / 2.0 + f * (t - dt_1) +
+    res = f * dt_1 / 2.0 + f * (dt_m + t - t_2) +
           d / 2.0 * (pow(t, 2) + pow(t_2, 2)) - d * t * t_2;
     *v = f + d * (t - t_2);
   } else {
@@ -283,6 +284,14 @@ point_t *block_interpolate(const block_t *b, data_t lambda) {
     return b->par;                                                             \
   }
 
+// SETTERS =====================================================================
+
+#define block_setter(typ, par, name)                                           \
+  typ block_set_##name(const block_t *b, data_t value) {                       \
+    assert(b);                                                                 \
+    b->par = value;                                                            \
+  }
+
 block_getter(data_t, length, length);
 block_getter(data_t, dtheta, dtheta);
 block_getter(data_t, prof->dt, dt);
@@ -293,6 +302,47 @@ block_getter(data_t, r, r);
 block_getter(point_t *, center, center);
 block_getter(block_t *, next, next);
 block_getter(point_t *, target, target);
+
+// ADDITIONS FOR LOOK AHEAD ====================================================
+block_getter(block_t *, prev, prev);
+block_getter(machine_t *, machine, machine);
+block_getter(data_t, feedrate, nomFeed);
+block_getter(data_t, prof->fs, FS);
+block_getter(data_t, prof->fm, FM);
+block_getter(data_t, prof->fe, FE);
+block_getter(data_t, prof->s[0], si);
+block_getter(data_t, prof->s[1], s1);
+block_getter(data_t, prof->s[2], s2);
+block_getter(data_t, prof->s[3], sf);
+block_getter(data_t, prof->l, len);
+block_getter(data_t, prof->s_star, s_star);
+block_getter(data_t, prof->v_star, v_star);
+block_getter(data_t, prof->dt_1, dt_1);
+block_getter(data_t, prof->dt_m, dt_m);
+block_getter(data_t, prof->dt_2, dt_2);
+block_getter(data_t, prof->a, acc);
+block_getter(data_t, prof->d, dec);
+block_getter(data_t, prof->f, F);
+
+block_setter(void, prof->f, F);
+block_setter(void, prof->fs, FS);
+block_setter(void, prof->fm, FM);
+block_setter(void, prof->fe, FE);
+block_setter(void, prof->s[0], si);
+block_setter(void, prof->s[1], s1);
+block_setter(void, prof->s[2], s2);
+block_setter(void, prof->s[3], sf);
+block_setter(void, prof->s_star, s_star);
+block_setter(void, prof->v_star, v_star);
+block_setter(void, prof->dt_1, dt_1);
+block_setter(void, prof->dt_m, dt_m);
+block_setter(void, prof->dt_2, dt_2);
+block_setter(void, prof->dt, dt);
+block_setter(void, prof->l, length);
+block_setter(void, prof->a, acc);
+block_setter(void, prof->d, dec);
+
+// =============================================================================
 
 //   ____  _        _   _         __
 //  / ___|| |_ __ _| |_(_) ___   / _|_   _ _ __   ___
@@ -350,6 +400,7 @@ static void block_compute(const block_t *b) {
 
 // Calculate the arc coordinates
 static int block_arc(block_t *b) {
+  assert(b);
   data_t x0, y0, z0, xc, yc, xf, yf, zf, r;
   point_t *p0 = point_zero(b);
   x0 = point_x(p0);
@@ -408,7 +459,7 @@ static int block_arc(block_t *b) {
 
 // Return a reliable previous point, i.e. machine zero if this is the first
 // block (no memory leaks)
-point_t *point_zero(const block_t *b) {
+static point_t *point_zero(const block_t *b) {
   assert(b);
   return b->prev ? b->prev->target : machine_zero(b->machine);
 }
