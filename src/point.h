@@ -1,7 +1,7 @@
-//   ____       _       _   
-//  |  _ \ ___ (_)_ __ | |_ 
+//   ____       _       _
+//  |  _ \ ___ (_)_ __ | |_
 //  | |_) / _ \| | '_ \| __|
-//  |  __/ (_) | | | | | |_ 
+//  |  __/ (_) | | | | | |_
 //  |_|   \___/|_|_| |_|\__|
 //  Point class
 
@@ -10,23 +10,22 @@
 
 #include "defines.h"
 
-//   _____                      
-//  |_   _|   _ _ __   ___  ___ 
+//   _____
+//  |_   _|   _ _ __   ___  ___
 //    | || | | | '_ \ / _ \/ __|
 //    | || |_| | |_) |  __/\__ \
 //    |_| \__, | .__/ \___||___/
-//        |___/|_|              
+//        |___/|_|
 
 // Object class defined as an OPAQUE STRUCT
 typedef struct point point_t;
 
-
-//   _____                 _   _                 
-//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___ 
+//   _____                 _   _
+//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___
 //  | |_ | | | | '_ \ / __| __| |/ _ \| '_ \/ __|
 //  |  _|| |_| | | | | (__| |_| | (_) | | | \__ \
 //  |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
-                                              
+
 // LIFECYCLE ===================================================================
 
 // Create a point
@@ -36,7 +35,7 @@ point_t *point_new();
 void point_free(point_t *p);
 
 // Inspection
-// WARNING: desc is internally allocated, remember to free() it 
+// WARNING: desc is internally allocated, remember to free() it
 // when done!!!
 void point_inspect(const point_t *p, char **desc);
 
@@ -64,6 +63,5 @@ void point_delta(const point_t *from, const point_t *to, point_t *delta);
 // "Modal behavior": a point may have undefined coordinates and if so it
 // must be able to inherit undefined coordinates from the previous point
 void point_modal(const point_t *from, point_t *to);
-
 
 #endif // POINT_H

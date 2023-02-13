@@ -1,17 +1,16 @@
-//   ____       _       _   
-//  |  _ \ ___ (_)_ __ | |_ 
+//   ____       _       _
+//  |  _ \ ___ (_)_ __ | |_
 //  | |_) / _ \| | '_ \| __|
-//  |  __/ (_) | | | | | |_ 
+//  |  __/ (_) | | | | | |_
 //  |_|   \___/|_|_| |_|\__|
 
 #include "point.h"
 
-//   ____            _                 _   _                 
-//  |  _ \  ___  ___| | __ _ _ __ __ _| |_(_) ___  _ __  ___ 
+//   ____            _                 _   _
+//  |  _ \  ___  ___| | __ _ _ __ __ _| |_(_) ___  _ __  ___
 //  | | | |/ _ \/ __| |/ _` | '__/ _` | __| |/ _ \| '_ \/ __|
 //  | |_| |  __/ (__| | (_| | | | (_| | |_| | (_) | | | \__ \
 //  |____/ \___|\___|_|\__,_|_|  \__,_|\__|_|\___/|_| |_|___/
-                                                          
 
 // Point object struct
 // We are using a bitmask for encoding the coordinates that are left
@@ -32,12 +31,12 @@ typedef struct point {
 #define Z_SET '\4'
 #define ALL_SET '\7'
 
-//   _____                 _   _                 
-//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___ 
+//   _____                 _   _
+//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___
 //  | |_ | | | | '_ \ / __| __| |/ _ \| '_ \/ __|
 //  |  _|| |_| | | | | (__| |_| | (_) | | | \__ \
 //  |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
-                                              
+
 // LIFECYCLE ===================================================================
 
 // Create a new point
@@ -47,8 +46,8 @@ point_t *point_new() {
   if (!p) {
     perror("Error creating a point");
     return NULL;
-    //exit(EXIT_FAILURE);
-  } 
+    // exit(EXIT_FAILURE);
+  }
   return p;
 }
 
@@ -65,25 +64,23 @@ void point_free(point_t *p) {
 #define FIELD_LENGTH 8
 void point_inspect(const point_t *p, char **desc) {
   assert(p);
-  char str_x[FIELD_LENGTH+1], str_y[FIELD_LENGTH+1], str_z[FIELD_LENGTH+1];
+  char str_x[FIELD_LENGTH + 1], str_y[FIELD_LENGTH + 1],
+      str_z[FIELD_LENGTH + 1];
   if (p->s & X_SET) { // defined
     snprintf(str_x, sizeof(str_x), "%*.3f", FIELD_LENGTH, p->x);
-  }
-  else { // not defined
+  } else { // not defined
     snprintf(str_x, sizeof(str_x), "%*s", FIELD_LENGTH, "-");
   }
 
   if (p->s & Y_SET) { // defined
     snprintf(str_y, sizeof(str_y), "%*.3f", FIELD_LENGTH, p->y);
-  }
-  else { // not defined
+  } else { // not defined
     snprintf(str_y, sizeof(str_y), "%*s", FIELD_LENGTH, "-");
   }
 
   if (p->s & Z_SET) { // defined
     snprintf(str_z, sizeof(str_z), "%*.3f", FIELD_LENGTH, p->z);
-  }
-  else { // not defined
+  } else { // not defined
     snprintf(str_z, sizeof(str_z), "%*s", FIELD_LENGTH, "-");
   }
   if (asprintf(desc, "[%s %s %s]", str_x, str_y, str_z) == -1) {
@@ -92,7 +89,6 @@ void point_inspect(const point_t *p, char **desc) {
   }
 }
 #undef FIELD_LENGTH
-
 
 // ACCESSORS ===================================================================
 
@@ -136,21 +132,30 @@ void point_set_z(point_t *p, data_t z) {
   p->s |= Z_SET; // like in a = a + 1 => a += 1
 }
 // GETTERS
-data_t point_x(const point_t *p) { assert(p); return p->x; }
-data_t point_y(const point_t *p) { assert(p); return p->y; }
-data_t point_z(const point_t *p) { assert(p); return p->z; }
+data_t point_x(const point_t *p) {
+  assert(p);
+  return p->x;
+}
+data_t point_y(const point_t *p) {
+  assert(p);
+  return p->y;
+}
+data_t point_z(const point_t *p) {
+  assert(p);
+  return p->z;
+}
 #else
 
 // Metaprogramming macro for DRYing the code
-#define point_accessor(axis, bitmask)              \
-  void point_set_##axis(point_t *p, data_t value) {\
-    assert(p);                                     \
-    p->axis = value;                               \
-    p->s |= bitmask;                               \
-  }                                                \
-  data_t point_##axis(const point_t *p) {          \
-    assert(p);                                     \
-    return p->axis;                                \
+#define point_accessor(axis, bitmask)                                          \
+  void point_set_##axis(point_t *p, data_t value) {                            \
+    assert(p);                                                                 \
+    p->axis = value;                                                           \
+    p->s |= bitmask;                                                           \
+  }                                                                            \
+  data_t point_##axis(const point_t *p) {                                      \
+    assert(p);                                                                 \
+    return p->axis;                                                            \
   }
 
 // use the macro: each call is generating both getter and setter
@@ -159,8 +164,6 @@ point_accessor(y, Y_SET);
 point_accessor(z, Z_SET);
 
 #endif
-
-
 
 // xxxx xxxx Initial p->s value (unknown)
 // 0000 0111 Char value of 7: '\7'
@@ -174,18 +177,13 @@ void point_set_xyz(point_t *p, data_t x, data_t y, data_t z) {
   p->s = ALL_SET;
 }
 
-
-
 // COMPUTATION =================================================================
 
 // distance between two points
 data_t point_dist(const point_t *from, const point_t *to) {
   assert(from && to);
-  return sqrt(
-    pow(to->x - from->x, 2) +
-    pow(to->y - from->y, 2) +
-    pow(to->z - from->z, 2)
-  );
+  return sqrt(pow(to->x - from->x, 2) + pow(to->y - from->y, 2) +
+              pow(to->z - from->z, 2));
 }
 
 // Projections
@@ -209,9 +207,8 @@ void point_modal(const point_t *from, point_t *to) {
   }
 }
 
-
-//   _____ _____ ____ _____   __  __       _       
-//  |_   _| ____/ ___|_   _| |  \/  | __ _(_)_ __  
+//   _____ _____ ____ _____   __  __       _
+//  |_   _| ____/ ___|_   _| |  \/  | __ _(_)_ __
 //    | | |  _| \___ \ | |   | |\/| |/ _` | | '_ \
 //    | | | |___ ___) || |   | |  | | (_| | | | | |
 //    |_| |_____|____/ |_|   |_|  |_|\__,_|_|_| |_|
@@ -221,12 +218,12 @@ void point_modal(const point_t *from, point_t *to) {
 int main() {
   point_t *p1 = NULL, *p2 = NULL, *p3 = NULL;
   char *desc = NULL;
-  
+
   // Create three points
   p1 = point_new();
   p2 = point_new();
   p3 = point_new();
-  
+
   // Set first point to origin
   point_set_xyz(p1, 0, 0, 0);
   // Only set X and Y of second point
@@ -241,20 +238,20 @@ int main() {
   point_inspect(p2, &desc);
   printf("After modal p2:     %s\n", desc);
   free(desc);
-  
+
   // Distance
   printf("Distance p1->p2:    %f\n", point_dist(p1, p2));
-  
+
   // Delta (projections)
   point_delta(p1, p2, p3);
   point_inspect(p3, &desc);
   printf("Projections p1->p2: %s\n", desc);
   free(desc);
-  
+
   // Free the memory for points
   point_free(p1);
   point_free(p2);
   point_free(p3);
   return 0;
 }
-#endif 
+#endif
