@@ -93,8 +93,7 @@ data_t maintenanceVel(const block_t *b) {
   else if (block_type(b) == ARC_CW || block_type(b) == ARC_CCW)
     return sqrt(machine_A(block_machine(b)) * block_r(b)) * 60; // [mm/min]
 
-  // block_type(b) == RAPID // reach the target as fast as possible
-  return 0.0;
+  return 0.0; // RAPID block
 }
 
 data_t finalVel(const block_t *b) {
@@ -142,22 +141,24 @@ void setFeed_sisf(const block_t *b) {
 void forwardAcc(const block_t *b, data_t MAX_acc, data_t vi, data_t vm,
                 data_t vf, data_t si, data_t sf) {
   assert(b);
+  MAX_acc = MAX_acc * 3600;
   if (vi <= vm) // Equality for dealing with pure Maintenance
-    block_set_s1(b, si + (pow(vm, 2) - pow(vi, 2)) / (2.0 * MAX_acc * 3600));
+    block_set_s1(b, si + (pow(vm, 2) - pow(vi, 2)) / (2.0 * MAX_acc));
 
   if (vm <= vf) // Equality for dealing with pure Maintenance
-    block_set_s2(b, sf + (pow(vm, 2) - pow(vf, 2)) / (2.0 * MAX_acc * 3600));
+    block_set_s2(b, sf + (pow(vm, 2) - pow(vf, 2)) / (2.0 * MAX_acc));
 }
 
 // ============================= Decelerations =================================
 void backwardDec(const block_t *b, data_t MAX_acc, data_t vi, data_t vm,
                  data_t vf, data_t si, data_t sf) {
   assert(b);
+  MAX_acc = MAX_acc * 3600;
   if (vi > vm)
-    block_set_s1(b, si + (pow(vi, 2) - pow(vm, 2)) / (2.0 * MAX_acc * 3600));
+    block_set_s1(b, si + (pow(vi, 2) - pow(vm, 2)) / (2.0 * MAX_acc));
 
   if (vm > vf)
-    block_set_s2(b, sf + (pow(vf, 2) - pow(vm, 2)) / (2.0 * MAX_acc * 3600));
+    block_set_s2(b, sf + (pow(vf, 2) - pow(vm, 2)) / (2.0 * MAX_acc));
 }
 
 void recompute_s1s2(const block_t *b, data_t MAX_acc, data_t vi, data_t v_star,
@@ -251,7 +252,7 @@ void reshape(const block_t *b) {
   data_t fe = block_FE(b);
   // data_t fm = block_FM(b); fm is equal to f_star or different (D-A or A-D)
 
-  // pure Maintenance
+  // (default values) Pure Maintenance
   data_t a = 0.0;
   data_t d = 0.0;
 
@@ -262,16 +263,19 @@ void reshape(const block_t *b) {
       (fs > f_star && fe > f_star) ||
       (fs > f_star && f_star > fe && dt_m != 0.0) ||
       (fs > f_star && f_star < fe && dt_m != 0.0)) {
-    a = (f_star - fs) / dt_1 / 60; // [mm/s^2]
-    d = (fe - f_star) / dt_2 / 60; // [mm/s^2]
+    a = (f_star - fs) / dt_1;
+    d = (fe - f_star) / dt_2;
   }
   //  pure A or pure D or pure M (takes into account also the possibility of not
   //  being able to reach fm if we have only A or only D)
   else if ((fs <= f_star && f_star <= fe && dt_m == 0.0) ||
            (fs > f_star && f_star > fe && dt_m == 0.0)) {
     if (t_tot != 0.0)
-      a = (fe - fs) / t_tot / 60;
+      a = (fe - fs) / t_tot;
   }
+
+  a /= 60; // [mm/s^2]
+  d /= 60; // [mm/s^2]
 
   // set calculated values in block velocity profile object
   // actual acc and decel
@@ -301,55 +305,23 @@ data_t block_lambda_LA(const block_t *b, data_t t, data_t *v) {
   data_t fs = block_FS(b) / 60; // [mm/s]
   data_t f = block_F(b) / 60;
 
-  // A-M-A, A-M-D, D-M-A, D-M-D
-  if (dt_m != 0.0) {
-    if (t < 0.0)
-      *v = 0.0;
-    else if (t < dt_1) {
-      res = a * pow(t, 2) / 2.0 + fs * t;
-      *v = a * t + fs;
-    } else if (t < (dt_1 + dt_m)) {
-      res = a * pow(dt_1, 2) / 2.0 + fs * dt_1 + f * (t - dt_1);
-      *v = f;
-    } else if (t < (dt_1 + dt_m + dt_2)) {
-      data_t t2 = dt_1 + dt_m;
-      res = a * pow(dt_1, 2) / 2.0 + fs * dt_1 + f * (dt_m + t - t2) +
-            d / 2.0 * (pow(t, 2) + pow(t2, 2)) - d * t * t2;
-      *v = f + d * (t - t2);
-    } else {
-      res = block_len(b);
-      *v = finalVel(b);
-    }
-  }
-
-  // A-D, D-A
-  else if (dt_m == 0.0) {
-    if (t < 0.0) {
-      *v = 0.0;
-    } else if (t < dt_1) {
-      res = a * pow(t, 2) / 2.0 + fs * t;
-      *v = a * t + fs;
-    } else if (t < (dt_1 + dt_2)) {
-      res = a * pow(dt_1, 2) / 2.0 + fs * dt_1 + f * (t - dt_1) +
-            d / 2.0 * (pow(t, 2) + pow(dt_1, 2)) - d * t * dt_1;
-      *v = f + d * (t - dt_1);
-    } else {
-      res = block_len(b);
-      *v = finalVel(b);
-    }
-  }
-
-  // A, D, M
-  else if (a == 0.0 || d == 0.0) {
-    if (t < 0.0) {
-      *v = 0.0;
-    } else if (t < (dt_1 + dt_2)) {
-      res = a * pow(t, 2) / 2.0 + fs * t;
-      *v = a * t + fs;
-    } else {
-      res = block_len(b);
-      *v = finalVel(b);
-    }
+  // A-M-A, A-M-D, D-M-A, D-M-D, A-D, D-A, A, D, M
+  if (t < 0.0)
+    *v = 0.0;
+  else if (t < dt_1 || (t < (dt_1 + dt_m + dt_2) && d == 0.0)) {
+    res = a * pow(t, 2) / 2.0 + fs * t;
+    *v = a * t + fs;
+  } else if (t < (dt_1 + dt_m) && dt_m != 0.0) {
+    res = a * pow(dt_1, 2) / 2.0 + fs * dt_1 + f * (t - dt_1);
+    *v = f;
+  } else if (t < (dt_1 + dt_m + dt_2) && a != 0.0 && d != 0.0) {
+    data_t t2 = dt_1 + dt_m;
+    res = a * pow(dt_1, 2) / 2.0 + fs * dt_1 + f * (dt_m + t - t2) +
+          d / 2.0 * (pow(t, 2) + pow(t2, 2)) - d * t * t2;
+    *v = f + d * (t - t2);
+  } else {
+    res = block_len(b);
+    *v = finalVel(b);
   }
 
   res /= block_len(b); // normalization
