@@ -1,31 +1,30 @@
-//   ____                                      
-//  |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___  
+//   ____
+//  |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___
 //  | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \
 //  |  __/| | | (_) | (_| | | | (_| | | | | | |
 //  |_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_|
-//                   |___/                     
+//                   |___/
 // C-CNC program interface
 
 #ifndef PROGRAM_H
 #define PROGRAM_H
 
-#include "defines.h"
 #include "block.h"
+#include "defines.h"
 #include "machine.h"
 
-//   _____                      
-//  |_   _|   _ _ __   ___  ___ 
+//   _____
+//  |_   _|   _ _ __   ___  ___
 //    | || | | | '_ \ / _ \/ __|
 //    | || |_| | |_) |  __/\__ \
 //    |_| \__, | .__/ \___||___/
-//        |___/|_|              
+//        |___/|_|
 
 // Opaque structure
 typedef struct program program_t;
 
-
-//   _____                 _   _                 
-//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___ 
+//   _____                 _   _
+//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___
 //  | |_ | | | | '_ \ / __| __| |/ _ \| '_ \/ __|
 //  |  _|| |_| | | | | (__| |_| | (_) | | | \__ \
 //  |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
@@ -43,15 +42,16 @@ void program_print(const program_t *program, FILE *output);
 
 // PROCESSING ==================================================================
 
-// parse the program: reading one line at a time and for creating a linked list of blocks (stored internally in the program object class) representing the program by taking the file
-// return either EXIT_SUCCESS or EXIT_FAILURE
+// parse the program: reading one line at a time and for creating a linked list
+// of blocks (stored internally in the program object class) representing the
+// program by taking the file return either EXIT_SUCCESS or EXIT_FAILURE
 int program_parse(program_t *program, machine_t *cfg);
 
 // linked-list navigation functions
-block_t *program_next(program_t *program); // to get/load the next block / program to be executed on the machine
+block_t *program_next(program_t *program); // get/load the next block to be
+                                           // executed on the machine
 
-void program_reset(program_t *program);    // resetting the program back to the very first block
-
+void program_reset(program_t *program); // back to VF block
 
 // GETTERS =====================================================================
 
