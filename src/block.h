@@ -1,7 +1,7 @@
-//   ____  _            _    
+//   ____  _            _
 //  | __ )| | ___   ___| | __
 //  |  _ \| |/ _ \ / __| |/ /
-//  | |_) | | (_) | (__|   < 
+//  | |_) | | (_) | (__|   <
 //  |____/|_|\___/ \___|_|\_\
 //  Block class
 
@@ -9,30 +9,24 @@
 #define BLOCK_H
 
 #include "defines.h"
-#include "point.h"
 #include "machine.h"
+#include "point.h"
 
-//   _____                      
-//  |_   _|   _ _ __   ___  ___ 
+//   _____
+//  |_   _|   _ _ __   ___  ___
 //    | || | | | '_ \ / _ \/ __|
 //    | || |_| | |_) |  __/\__ \
 //    |_| \__, | .__/ \___||___/
-//        |___/|_|              
+//        |___/|_|
 
 // Opaque structure representing a G-code block
 typedef struct block block_t;
 
 // Block types
-typedef enum {
-  RAPID = 0,
-  LINE,
-  ARC_CW,
-  ARC_CCW,
-  NO_MOTION
-} block_type_t;
+typedef enum { RAPID = 0, LINE, ARC_CW, ARC_CCW, NO_MOTION } block_type_t;
 
-//   _____                 _   _                 
-//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___ 
+//   _____                 _   _
+//  |  ___|   _ _ __   ___| |_(_) ___  _ __  ___
 //  | |_ | | | | '_ \ / __| __| |/ _ \| '_ \/ __|
 //  |  _|| |_| | | | | (__| |_| | (_) | | | \__ \
 //  |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
@@ -53,12 +47,12 @@ int block_parse(block_t *b);
 data_t block_lambda(const block_t *b, data_t time, data_t *v);
 
 // Interpolate lambda over three axes: returns x, y, z at time t
-point_t *block_interpolate(const block_t *b, data_t lambda); // linear and arc interpolation
+point_t *block_interpolate(const block_t *b,
+                           data_t lambda); // linear and arc interpolation
 
-// Setting the point as the target point of each block
-point_t *point_zero(const block_t *b);
+// ACCESSORS ===================================================================
 
-// GETTERS =====================================================================
+// GETTERS
 
 data_t block_length(const block_t *b);
 data_t block_dtheta(const block_t *b); // for Non linear trajectories
@@ -71,5 +65,44 @@ point_t *block_center(const block_t *b);
 block_t *block_next(const block_t *b);
 point_t *block_target(const block_t *b);
 
+// FOR LOOK AHEAD ==============================================================
+block_t *block_prev(const block_t *b);
+machine_t *block_machine(const block_t *b);
+data_t block_nomFeed(const block_t *b);
+data_t block_FS(const block_t *b);
+data_t block_FM(const block_t *b);
+data_t block_FE(const block_t *b);
+data_t block_si(const block_t *b);
+data_t block_s1(const block_t *b);
+data_t block_s2(const block_t *b);
+data_t block_sf(const block_t *b);
+data_t block_len(const block_t *b);
+data_t block_s_star(const block_t *b);
+data_t block_v_star(const block_t *b);
+data_t block_dt_1(const block_t *b);
+data_t block_dt_m(const block_t *b);
+data_t block_dt_2(const block_t *b);
+data_t block_acc(const block_t *b);
+data_t block_dec(const block_t *b);
+data_t block_F(const block_t *b);
+
+// SETTERS
+void block_set_F(const block_t *b, data_t value);
+void block_set_FS(const block_t *b, data_t value);
+void block_set_FM(const block_t *b, data_t value);
+void block_set_FE(const block_t *b, data_t value);
+void block_set_si(const block_t *b, data_t value);
+void block_set_s1(const block_t *b, data_t value);
+void block_set_s2(const block_t *b, data_t value);
+void block_set_sf(const block_t *b, data_t value);
+void block_set_s_star(const block_t *b, data_t value);
+void block_set_v_star(const block_t *b, data_t value);
+void block_set_dt_1(const block_t *b, data_t value);
+void block_set_dt_m(const block_t *b, data_t value);
+void block_set_dt_2(const block_t *b, data_t value);
+void block_set_dt(const block_t *b, data_t value);
+void block_set_length(const block_t *b, data_t value);
+void block_set_acc(const block_t *b, data_t value);
+void block_set_dec(const block_t *b, data_t value);
 
 #endif // BLOCK_H
