@@ -16,16 +16,17 @@
 // Trapezoidal velocity profile
 typedef struct {
   data_t a, d;   // acceleration, deceleration
-  data_t f, l;   // actual feedrate and length
+  data_t f, l;   // nominal feedrate and length
   data_t fs, fe; // initial and final feedrate
   data_t dt_1, dt_m,
       dt_2;  // trapezoidal acceleration, maintenance and deceleration times
   data_t dt; // total time
 
   // ADDITIONS FOR LOOK AHEAD
-  data_t s[4]; // 4 notable points [si, s1, s2, sf]
-  data_t fm;   // maintenance feedrate
-  data_t v_star, s_star;
+  data_t s[4];           // 4 notable points [si, s1, s2, sf]
+  char *path_desc;       // profile description (9 possible cases)
+  data_t k;              // feed correcting factor
+  data_t v_star, s_star; // v_star and s_star for A-D and D-A case
 } block_profile_t;
 
 // Block object structure
@@ -138,6 +139,12 @@ void block_print(const block_t *b, FILE *out) {
           b->feedrate, b->spindle, b->tool, b->type);
   free(end);
   free(start);
+}
+
+void block_set_path(const block_t *b, char *desc) // ADDED FOR LOOK AHEAD ***
+{
+  assert(b);
+  b->prof->path_desc = desc;
 }
 
 // ALGORITHMS ==================================================================
@@ -306,33 +313,31 @@ block_getter(point_t *, target, target);
 // ADDITIONS FOR LOOK AHEAD ====================================================
 block_getter(block_t *, prev, prev);
 block_getter(machine_t *, machine, machine);
-block_getter(data_t, feedrate, nomFeed);
+block_getter(data_t, act_feedrate, actFeed);
 block_getter(data_t, prof->fs, FS);
-block_getter(data_t, prof->fm, FM);
+block_getter(data_t, prof->f, F);
 block_getter(data_t, prof->fe, FE);
 block_getter(data_t, prof->s[0], si);
 block_getter(data_t, prof->s[1], s1);
 block_getter(data_t, prof->s[2], s2);
 block_getter(data_t, prof->s[3], sf);
-block_getter(data_t, prof->l, len);
-block_getter(data_t, prof->s_star, s_star);
 block_getter(data_t, prof->v_star, v_star);
 block_getter(data_t, prof->dt_1, dt_1);
 block_getter(data_t, prof->dt_m, dt_m);
 block_getter(data_t, prof->dt_2, dt_2);
+block_getter(data_t, prof->l, len);
 block_getter(data_t, prof->a, acc);
 block_getter(data_t, prof->d, dec);
-block_getter(data_t, prof->f, F);
+block_getter(data_t, prof->k, k);
+block_getter(char *, prof->path_desc, path_name);
 
-block_setter(void, prof->f, F);
 block_setter(void, prof->fs, FS);
-block_setter(void, prof->fm, FM);
+block_setter(void, prof->f, F);
 block_setter(void, prof->fe, FE);
 block_setter(void, prof->s[0], si);
 block_setter(void, prof->s[1], s1);
 block_setter(void, prof->s[2], s2);
 block_setter(void, prof->s[3], sf);
-block_setter(void, prof->s_star, s_star);
 block_setter(void, prof->v_star, v_star);
 block_setter(void, prof->dt_1, dt_1);
 block_setter(void, prof->dt_m, dt_m);
@@ -341,6 +346,7 @@ block_setter(void, prof->dt, dt);
 block_setter(void, prof->l, length);
 block_setter(void, prof->a, acc);
 block_setter(void, prof->d, dec);
+block_setter(void, prof->k, k);
 
 // =============================================================================
 

@@ -68,34 +68,32 @@ point_t *block_target(const block_t *b);
 // FOR LOOK AHEAD ==============================================================
 block_t *block_prev(const block_t *b);
 machine_t *block_machine(const block_t *b);
-data_t block_nomFeed(const block_t *b);
+data_t block_actFeed(const block_t *b);
 data_t block_FS(const block_t *b);
-data_t block_FM(const block_t *b);
+data_t block_F(const block_t *b);
 data_t block_FE(const block_t *b);
 data_t block_si(const block_t *b);
 data_t block_s1(const block_t *b);
 data_t block_s2(const block_t *b);
 data_t block_sf(const block_t *b);
 data_t block_len(const block_t *b);
-data_t block_s_star(const block_t *b);
 data_t block_v_star(const block_t *b);
 data_t block_dt_1(const block_t *b);
 data_t block_dt_m(const block_t *b);
 data_t block_dt_2(const block_t *b);
 data_t block_acc(const block_t *b);
 data_t block_dec(const block_t *b);
-data_t block_F(const block_t *b);
+data_t block_k(const block_t *b);
+char *block_path_name(const block_t *b);
 
 // SETTERS
-void block_set_F(const block_t *b, data_t value);
 void block_set_FS(const block_t *b, data_t value);
-void block_set_FM(const block_t *b, data_t value);
+void block_set_F(const block_t *b, data_t value);
 void block_set_FE(const block_t *b, data_t value);
 void block_set_si(const block_t *b, data_t value);
 void block_set_s1(const block_t *b, data_t value);
 void block_set_s2(const block_t *b, data_t value);
 void block_set_sf(const block_t *b, data_t value);
-void block_set_s_star(const block_t *b, data_t value);
 void block_set_v_star(const block_t *b, data_t value);
 void block_set_dt_1(const block_t *b, data_t value);
 void block_set_dt_m(const block_t *b, data_t value);
@@ -104,5 +102,7 @@ void block_set_dt(const block_t *b, data_t value);
 void block_set_length(const block_t *b, data_t value);
 void block_set_acc(const block_t *b, data_t value);
 void block_set_dec(const block_t *b, data_t value);
+void block_set_k(const block_t *b, data_t value);
+void block_set_path(const block_t *b, char *desc);
 
 #endif // BLOCK_H
