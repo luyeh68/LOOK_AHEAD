@@ -60,5 +60,9 @@ size_t program_length(const program_t *p);    // n° of blocks of a program
 block_t *program_current(const program_t *p); // returns the current block
 block_t *program_first(const program_t *p);   // return the VF block
 block_t *program_last(const program_t *p);    // return the VL block
+data_t program_pathDone(const program_t *p);      // return the path profile
+
+// SETTERS =====================================================================
+void program_set_pathDone(program_t *p, data_t value);
 
 #endif // PROGRAM_H

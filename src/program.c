@@ -20,6 +20,7 @@ typedef struct program {
   FILE *file;                      // file handle
   block_t *first, *last, *current; // block pointers
   size_t n;                        // total number of blocks
+  data_t path;                     // path profile (LA) - current program pose
 } program_t;
 
 //   _____                 _   _
@@ -47,6 +48,7 @@ program_t *program_new(const char *filename) {
   p->last = NULL;
   p->current = NULL;
   p->n = 0;
+  p->path = 0.0;
   return p;
 }
 
@@ -99,9 +101,8 @@ int program_parse(program_t *p, machine_t *cfg) {
   // read the file, one line at a time, and create a new block for
   // each line
   p->n = 0;
-  while ((line_len = getline(&line, &n, p->file)) >=
-         0) // getline reads one line of the G-code file
-  {
+  // GETLINE reads one line of the G-code file
+  while ((line_len = getline(&line, &n, p->file)) >= 0) {
     // remove trailing newline (\n) replacing it with a terminator
     if (line[line_len - 1] == '\n') {
       line[line_len - 1] = '\0';
@@ -148,8 +149,20 @@ void program_reset(program_t *p) {
     return p->par;                                                             \
   }
 
+// SETTERS =====================================================================
+
+#define program_setter(typ, par, name)                                         \
+  typ program_set_##name(program_t *p, data_t value) {                         \
+    assert(p);                                                                 \
+    p->par = value;                                                            \
+  }
+
 program_getter(char *, filename, filename);
 program_getter(block_t *, first, first);
 program_getter(block_t *, current, current);
 program_getter(block_t *, last, last);
 program_getter(size_t, n, length);
+program_getter(data_t, path, pathDone);
+
+// ADDED for Look-Ahead
+program_setter(void, path, pathDone);
