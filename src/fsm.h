@@ -16,6 +16,8 @@ Functions and types have been generated with prefix "ccnc_"
 #ifndef FSM_H
 #define FSM_H
 #include "machine.h"
+#include "block_la.h"
+#include "program_la.h"
 #include "program.h"
 #include "defines.h"
 #include <stdlib.h>
