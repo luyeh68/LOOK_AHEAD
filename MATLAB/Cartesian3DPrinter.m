@@ -55,7 +55,7 @@ sm_3d_printer_parameters;
 w_m = [0, 1000, 2000, 3000]; % Rotational speed [rpm]
 t_m = [1, 1, 0.95, 0] * 200; % Torque [Nm]
 
-figure
+figure(1)
 plot(w_m, t_m)
 xlabel("[rpm]")
 ylabel("[Nm]")
