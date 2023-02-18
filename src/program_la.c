@@ -62,8 +62,8 @@ void program_LA_s1s2_ordering(const program_t *p, data_t MAX_acc, data_t si) {
   block_t *b = program_first(p);
 
   while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_recompute_s1s2(b, MAX_acc, block_FS(b), block_F(b), block_FE(b), si,
-                   block_s1(b), block_s2(b), block_sf(b));
+    block_LA_recompute_s1s2(b, MAX_acc, block_FS(b), block_F(b), block_FE(b),
+                            si, block_s1(b), block_s2(b), block_sf(b));
     b = block_next(b);
   }
 }
@@ -98,8 +98,8 @@ void program_LA_timer(const program_t *p, data_t MAX_acc) {
   block_t *b = program_first(p);
 
   while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_timings(b, MAX_acc, block_FS(b), block_F(b), block_FE(b), block_s1(b),
-            block_s2(b));
+    block_LA_timings(b, MAX_acc, block_FS(b), block_F(b), block_FE(b),
+                     block_s1(b), block_s2(b));
     b = block_next(b);
   }
 }
@@ -111,7 +111,7 @@ void program_LA_set_path_name(const program_t *p, data_t si) {
 
   while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
     block_LA_path_name(b, block_FS(b), block_F(b), block_FE(b), si, block_s1(b),
-              block_s2(b), block_sf(b));
+                       block_s2(b), block_sf(b));
     b = block_next(b);
   }
 }
@@ -129,35 +129,34 @@ void program_LA_correct_ACC_DEC(const program_t *p) {
 
 void program_LA_totalTime_G00_G00(const program_t *p) {
   assert(p);
-  // start from second block: the first one will be RAPID in the gcode provided
   block_t *b = program_first(p);
+  int idx = 1; // for looping over the whole program
+  int Nb = 0;  // number of blocks between 2 G00 blocks
   data_t TOT = 0.0;
-  int nG00 = 0; // takes into account the number of blocks between 2 G00 blocks
-  int idx = 0;
 
-  while (idx < program_length(p) - 1) {
-    // next block is a RAPID or block_actFeed(b) = 0 or block_next(b) = NULL
-    // or Alpha > 45°
-    if (block_FE(b) == 0.0) {
-      TOT += block_dt(b);
-      nG00++;
+  while (idx < program_length(p)) {
+    block_t *current = b;
+    if (block_type(b) != RAPID && block_FE(b) == 0.0) {
+      TOT += block_dt(b); Nb++;
+      
       // Loop for reshaping the velocities of blocks between 2 G00 blocks
-      for (int j = 1; j < nG00; j++) {
+      for (int j = 1; j < Nb; j++) {
         block_LA_reshapeFeed(b, block_FS(b), block_F(b), block_FE(b), TOT, 0);
         b = block_prev(b);
       }
       block_LA_reshapeFeed(b, block_FS(b), block_F(b), block_FE(b), TOT, 1);
+
+      b = block_next(current); // we go on for the other G00 blocks if existing
       idx++;
-    } else if (block_type(b) == RAPID) {
+      Nb = 0; TOT = 0.0;
+    } else if (block_type(b) == RAPID && block_FE(b) == 0.0) {
       b = block_next(b);
       idx++;
-    }
-    // neither RAPID nor the next block is a RAPID
-    else {
+    } else if(block_type(b) != RAPID && block_FE(b) != 0.0) 
+    {
       TOT += block_dt(b);
       b = block_next(b);
-      nG00++;
-      idx++;
+      Nb++; idx++;
     }
   }
 }
