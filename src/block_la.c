@@ -24,7 +24,9 @@
 // STATIC FUNCTIONS (for internal use only)
 static data_t quantize_LA(data_t time, data_t tq, data_t *dq);
 static point_t *point_zero(const block_t *b);
-
+static data_t dot_product(const point_t *p1, const point_t *p2,
+                          const point_t *p3);
+static data_t cosAlpha(const block_t *b);
 //  ____ _____ _____ ____    _
 // / ___|_   _| ____|  _ \  / |
 // \___ \ | | |  _| | |_) | | |
@@ -32,66 +34,12 @@ static point_t *point_zero(const block_t *b);
 // |____/ |_| |_____|_|     |_|
 // Intermediate velocities
 
-data_t dot_product(const point_t *p1, const point_t *p2, const point_t *p3) {
-  assert(p1 && p2 && p3);
-  return (point_x(p2) - point_x(p1)) * (point_x(p3) - point_x(p2)) +
-         (point_y(p2) - point_y(p1)) * (point_y(p3) - point_y(p2)) +
-         (point_z(p2) - point_z(p1)) * (point_z(p3) - point_z(p2));
-}
-
-data_t cosAlpha(const block_t *b) {
-  assert(b);
-  data_t cos_alpha = 0.0;
-  point_t *p1 = point_zero(b);
-  point_t *p2 = block_target(b);
-  point_t *p3 = block_target(block_next(b));
-  point_t *center = block_center(b);
-  point_t *center_next = block_center(block_next(b));
-
-  data_t v1_lin = point_dist(p1, p2);
-  data_t v2_lin = point_dist(p2, p3);
-  data_t v1_arc = block_r(b);
-  data_t v2_arc = block_r(block_next(b));
-
-  // LINEAR BLOCK -- LINEAR BLOCK
-  if (block_type(b) == LINE && block_type(block_next(b)) == LINE)
-    cos_alpha = dot_product(p1, p2, p3) / (fabs(v1_lin) * fabs(v2_lin));
-
-  // ARC_CW or ARC_CCW BLOCK -- LINEAR BLOCK
-  else if ((block_type(b) == ARC_CW || block_type(b) == ARC_CCW) &&
-           block_type(block_next(b)) == LINE) {
-    data_t dot = dot_product(center, p2, p3);
-    data_t beta = acos(dot / (fabs(v1_arc) * fabs(v2_lin))); // [rad]
-    cos_alpha = cos(M_PI / 2.0 - beta); // r is always orthogonal to a
-                                        // trajectory
-  }
-
-  // LINEAR BLOCK -- ARC_CW or ARC_CCW BLOCK
-  else if (block_type(b) == LINE && (block_type(block_next(b)) == ARC_CW ||
-                                     block_type(block_next(b)) == ARC_CCW)) {
-    data_t dot = dot_product(p1, p2, center_next);
-    data_t beta = acos(dot / (fabs(v1_lin) * fabs(v2_arc))); // [rad]
-    cos_alpha = cos(M_PI / 2.0 - beta); // r is always orthogonal to a
-                                        // trajectory
-  }
-
-  // all 4 combinations of ARC_CW and ARC_CCW blocks
-  else if ((block_type(b) == ARC_CW && block_type(block_next(b)) == ARC_CCW) ||
-           (block_type(b) == ARC_CCW && block_type(block_next(b)) == ARC_CW) ||
-           (block_type(b) == ARC_CW && block_type(block_next(b)) == ARC_CW) ||
-           (block_type(b) == ARC_CCW && block_type(block_next(b)) == ARC_CCW)) {
-    cos_alpha =
-        dot_product(center, p2, center_next) / (fabs(v1_arc) * fabs(v2_arc));
-  }
-  return cos_alpha;
-}
-
-data_t maintenanceFeed(const block_t *b) {
+data_t block_LA_maintenanceFeed(const block_t *b) {
   assert(b);
   return block_actFeed(b); // [mm/min] -- calculated during PARSING
 }
 
-data_t finalFeed(const block_t *b) {
+data_t block_LA_finalFeed(const block_t *b) {
   assert(b);
 
   // angle > 45° OR vm,i = 0 ==> 0 speed OR if last segment ==> 0 speed
@@ -99,23 +47,25 @@ data_t finalFeed(const block_t *b) {
       block_type(b) == RAPID || !block_next(b))
     return 0.0;
 
-  return (maintenanceFeed(b) + maintenanceFeed(block_next(b))) / 2.0 *
-         cosAlpha(b); //[mm/min]
+  return (block_LA_maintenanceFeed(b) +
+          block_LA_maintenanceFeed(block_next(b))) /
+         2.0 * cosAlpha(b); //[mm/min]
 }
 
-data_t initialFeed(const block_t *b) {
+data_t block_LA_initialFeed(const block_t *b) {
   assert(b);
-  return block_prev(b) ? finalFeed(block_prev(b)) : 0.0; // fs,i = fe,i-1
+  return block_prev(b) ? block_LA_finalFeed(block_prev(b))
+                       : 0.0; // fs,i = fe,i-1
 }
 
-void setKnownFeed(const block_t *b) {
+void block_LA_setKnownFeed(const block_t *b) {
   assert(b);
-  block_set_FS(b, initialFeed(b));
-  block_set_F(b, maintenanceFeed(b));
-  block_set_FE(b, finalFeed(b));
+  block_set_FS(b, block_LA_initialFeed(b));
+  block_set_F(b, block_LA_maintenanceFeed(b));
+  block_set_FE(b, block_LA_finalFeed(b));
 }
 
-void set_sisf(const block_t *b) {
+void block_LA_set_sisf(const block_t *b) {
   // Any block can be considered indipendent in its own Reference frame:
   // si
   block_set_si(b, 0.0);
@@ -132,8 +82,8 @@ void set_sisf(const block_t *b) {
 // ============================== 9 possible cases =============================
 
 // ============================= Accelerations =================================
-void forwardAcc_s1s2(const block_t *b, data_t MAX_acc, data_t vm, data_t si,
-                     data_t sf) {
+void block_LA_forwardAcc_s1s2(const block_t *b, data_t MAX_acc, data_t vm,
+                              data_t si, data_t sf) {
   assert(b);
   if (block_FS(b) <= vm) // Equality for dealing with pure Maintenance
     block_set_s1(b, si + (pow(vm, 2) - pow(block_FS(b), 2)) / (2.0 * MAX_acc));
@@ -143,8 +93,8 @@ void forwardAcc_s1s2(const block_t *b, data_t MAX_acc, data_t vm, data_t si,
 }
 
 // ============================= Decelerations =================================
-void backwardDec_s1s2(const block_t *fromLast, data_t MAX_acc, data_t vm,
-                      data_t si, data_t sf) {
+void block_LA_backwardDec_s1s2(const block_t *fromLast, data_t MAX_acc,
+                               data_t vm, data_t si, data_t sf) {
   assert(fromLast);
   if (block_FS(fromLast) > vm)
     block_set_s1(fromLast, si + (pow(block_FS(fromLast), 2) - pow(vm, 2)) /
@@ -155,8 +105,8 @@ void backwardDec_s1s2(const block_t *fromLast, data_t MAX_acc, data_t vm,
                                     (2.0 * MAX_acc));
 }
 
-void recompute_feed_ACC(const block_t *b, data_t MAX_acc, data_t si,
-                        data_t sf) {
+void block_LA_recompute_feed_ACC(const block_t *b, data_t MAX_acc, data_t si,
+                                 data_t sf) {
   assert(b);
   data_t vf_max = sqrt(2 * MAX_acc * (sf - si) + pow(block_FS(b), 2));
 
@@ -169,8 +119,8 @@ void recompute_feed_ACC(const block_t *b, data_t MAX_acc, data_t si,
   }
 }
 
-void recompute_feed_DEC(const block_t *fromLast, data_t MAX_acc, data_t si,
-                        data_t sf) {
+void block_LA_recompute_feed_DEC(const block_t *fromLast, data_t MAX_acc,
+                                 data_t si, data_t sf) {
   assert(fromLast);
   data_t vs_max = sqrt(2 * MAX_acc * (sf - si) + pow(block_FE(fromLast), 2));
 
@@ -183,8 +133,9 @@ void recompute_feed_DEC(const block_t *fromLast, data_t MAX_acc, data_t si,
   }
 }
 
-void recompute_s1s2(const block_t *b, data_t MAX_acc, data_t vs, data_t vm,
-                    data_t vf, data_t si, data_t s1, data_t s2, data_t sf) {
+void block_LA_recompute_s1s2(const block_t *b, data_t MAX_acc, data_t vs,
+                             data_t vm, data_t vf, data_t si, data_t s1,
+                             data_t s2, data_t sf) {
   assert(b);
   data_t vs_max = sqrt(2 * MAX_acc * (sf - si) + pow(vf, 2));
   data_t vf_max = sqrt(2 * MAX_acc * (sf - si) + pow(vs, 2));
@@ -231,8 +182,8 @@ void recompute_s1s2(const block_t *b, data_t MAX_acc, data_t vs, data_t vm,
 }
 
 // useful later on to distinguish among the 9 different cases
-void path_name(const block_t *b, data_t vs, data_t vm, data_t vf, data_t si,
-               data_t s1, data_t s2, data_t sf) {
+void block_LA_path_name(const block_t *b, data_t vs, data_t vm, data_t vf,
+                        data_t si, data_t s1, data_t s2, data_t sf) {
   assert(b);
   if (vs < vm && vm < vf && s1 != si && s2 != sf && s1 != s2)
     block_set_path(b, "A-M-A");
@@ -253,8 +204,8 @@ void path_name(const block_t *b, data_t vs, data_t vm, data_t vf, data_t si,
 // |____/ |_| |_____|_|        |_|
 // Calculate the timings [sec]
 
-void timings(const block_t *b, data_t MAX_acc, data_t vs, data_t vm, data_t vf,
-             data_t s1, data_t s2) {
+void block_LA_timings(const block_t *b, data_t MAX_acc, data_t vs, data_t vm,
+                      data_t vf, data_t s1, data_t s2) {
   assert(b);
   char *block_path = block_path_name(b);
   data_t dt_1 = 0.0;
@@ -300,8 +251,8 @@ void timings(const block_t *b, data_t MAX_acc, data_t vs, data_t vm, data_t vf,
 // |____/ |_| |_____|_|     |____/
 // Reshaping Velocities
 
-void reshapeFeed(const block_t *b, data_t vs, data_t vm, data_t vf,
-                 data_t total, int last) {
+void block_LA_reshapeFeed(const block_t *b, data_t vs, data_t vm, data_t vf,
+                          data_t total, int last) {
   assert(b);
   data_t dq; // amount of time for rounding up to the next multiple of tq
   char *block_path = block_path_name(b);
@@ -338,7 +289,7 @@ void reshapeFeed(const block_t *b, data_t vs, data_t vm, data_t vf,
   block_set_length(b, block_length(b));
 }
 
-void reshapeAccDec(const block_t *b, data_t vs, data_t vm, data_t vf) {
+void block_LA_reshapeAccDec(const block_t *b, data_t vs, data_t vm, data_t vf) {
   assert(b);
   char *block_path = block_path_name(b);
   data_t dt_1 = block_dt_1(b);
@@ -428,4 +379,62 @@ static point_t *point_zero(const block_t *b) {
   assert(b);
   return block_prev(b) ? block_target(block_prev(b))
                        : machine_zero(block_machine(b));
+}
+
+//                                   ____     ____
+// Scalar Product between 2 vectors (P1P2 and P2P3)
+static data_t dot_product(const point_t *p1, const point_t *p2,
+                          const point_t *p3) {
+  assert(p1 && p2 && p3);
+  return (point_x(p2) - point_x(p1)) * (point_x(p3) - point_x(p2)) +
+         (point_y(p2) - point_y(p1)) * (point_y(p3) - point_y(p2)) +
+         (point_z(p2) - point_z(p1)) * (point_z(p3) - point_z(p2));
+}
+
+// Compute the cosine of the angle between each pair of consecutive blocks
+static data_t cosAlpha(const block_t *b) {
+  assert(b);
+  data_t cos_alpha = 0.0;
+  point_t *p1 = point_zero(b);
+  point_t *p2 = block_target(b);
+  point_t *p3 = block_target(block_next(b));
+  point_t *center = block_center(b);
+  point_t *center_next = block_center(block_next(b));
+
+  data_t v1_lin = point_dist(p1, p2);
+  data_t v2_lin = point_dist(p2, p3);
+  data_t v1_arc = block_r(b);
+  data_t v2_arc = block_r(block_next(b));
+
+  // LINEAR BLOCK -- LINEAR BLOCK
+  if (block_type(b) == LINE && block_type(block_next(b)) == LINE)
+    cos_alpha = dot_product(p1, p2, p3) / (fabs(v1_lin) * fabs(v2_lin));
+
+  // ARC_CW or ARC_CCW BLOCK -- LINEAR BLOCK
+  else if ((block_type(b) == ARC_CW || block_type(b) == ARC_CCW) &&
+           block_type(block_next(b)) == LINE) {
+    data_t dot = dot_product(center, p2, p3);
+    data_t beta = acos(dot / (fabs(v1_arc) * fabs(v2_lin))); // [rad]
+    cos_alpha = cos(M_PI / 2.0 - beta); // r is always orthogonal to a
+                                        // trajectory
+  }
+
+  // LINEAR BLOCK -- ARC_CW or ARC_CCW BLOCK
+  else if (block_type(b) == LINE && (block_type(block_next(b)) == ARC_CW ||
+                                     block_type(block_next(b)) == ARC_CCW)) {
+    data_t dot = dot_product(p1, p2, center_next);
+    data_t beta = acos(dot / (fabs(v1_lin) * fabs(v2_arc))); // [rad]
+    cos_alpha = cos(M_PI / 2.0 - beta); // r is always orthogonal to a
+                                        // trajectory
+  }
+
+  // all 4 combinations of ARC_CW and ARC_CCW blocks
+  else if ((block_type(b) == ARC_CW && block_type(block_next(b)) == ARC_CCW) ||
+           (block_type(b) == ARC_CCW && block_type(block_next(b)) == ARC_CW) ||
+           (block_type(b) == ARC_CW && block_type(block_next(b)) == ARC_CW) ||
+           (block_type(b) == ARC_CCW && block_type(block_next(b)) == ARC_CCW)) {
+    cos_alpha =
+        dot_product(center, p2, center_next) / (fabs(v1_arc) * fabs(v2_arc));
+  }
+  return cos_alpha;
 }

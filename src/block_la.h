@@ -18,54 +18,47 @@
 #include "block.h"
 
 // ============================= ALGORITHMS ====================================
-//                                   ____     ____
-// Scalar Product between 2 vectors (P1P2 and P2P3)
-data_t dot_product(const point_t *p1, const point_t *p2, const point_t *p3);
-
-// Compute the cosine of the angle between each pair of consecutive blocks
-data_t cosAlpha(const block_t *b);
-
 // Initial velocity of current block
-data_t initialFeed(const block_t *b);
+data_t block_LA_initialFeed(const block_t *b);
 
 // Maintenance velocity of current block
-data_t maintenanceFeed(const block_t *b);
+data_t block_LA_maintenanceFeed(const block_t *b);
 
 // Final velocity of current block
-data_t finalFeed(const block_t *b);
+data_t block_LA_finalFeed(const block_t *b);
 
 // setting fs, fm and fe for current block
-void setKnownFeed(const block_t *b);
+void block_LA_setKnownFeed(const block_t *b);
 
 // setting si and sf
-void set_sisf(const block_t *b);
+void block_LA_set_sisf(const block_t *b);
 
 // ===================== calculating the 4 notable points ======================
-void forwardAcc_s1s2(const block_t *b, data_t MAX_acc, data_t vm, data_t si,
+void block_LA_forwardAcc_s1s2(const block_t *b, data_t MAX_acc, data_t vm, data_t si,
                      data_t sf);
 
-void backwardDec_s1s2(const block_t *b, data_t MAX_acc, data_t vm, data_t si,
+void block_LA_backwardDec_s1s2(const block_t *b, data_t MAX_acc, data_t vm, data_t si,
                       data_t sf);
 
-void recompute_feed_ACC(const block_t *b, data_t MAX_acc, data_t si, data_t sf);
-void recompute_feed_DEC(const block_t *b, data_t MAX_acc, data_t si, data_t sf);
+void block_LA_recompute_feed_ACC(const block_t *b, data_t MAX_acc, data_t si, data_t sf);
+void block_LA_recompute_feed_DEC(const block_t *b, data_t MAX_acc, data_t si, data_t sf);
 
-void recompute_s1s2(const block_t *b, data_t MAX_acc, data_t vs, data_t vm,
+void block_LA_recompute_s1s2(const block_t *b, data_t MAX_acc, data_t vs, data_t vm,
                     data_t vf, data_t si, data_t s1, data_t s2, data_t sf);
 // =============================================================================
-void path_name(const block_t *b, data_t vs, data_t vm, data_t vf, data_t si,
+void block_LA_path_name(const block_t *b, data_t vs, data_t vm, data_t vf, data_t si,
                data_t s1, data_t s2,
                data_t sf); // print a description of the block type
 
 // Calculate intervals dt_1, dt_m, dt_2 for [si, s1], [s1, s2], [s2, sf]
-void timings(const block_t *b, data_t MAX_acc, data_t vs, data_t vm, data_t vf,
+void block_LA_timings(const block_t *b, data_t MAX_acc, data_t vs, data_t vm, data_t vf,
              data_t s1, data_t s2);
 
 // Rescaling velocities and accelerations - decelerations
-void reshapeFeed(const block_t *b, data_t vs, data_t vm, data_t vf,
+void block_LA_reshapeFeed(const block_t *b, data_t vs, data_t vm, data_t vf,
                  data_t total, int last);
 
-void reshapeAccDec(const block_t *b, data_t vs, data_t vm, data_t vf);
+void block_LA_reshapeAccDec(const block_t *b, data_t vs, data_t vm, data_t vf);
 
 // Calculate lambda function to be used when doing Interpolation (in fsm.c)
 data_t block_lambda_LA(const block_t *b, data_t vs, data_t vm, data_t vf,
