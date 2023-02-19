@@ -19,13 +19,13 @@
 
 // ============================= ALGORITHMS ====================================
 // Initial velocity of current block
-data_t block_LA_initialFeed(block_t *b);
+data_t block_LA_initialFeed(const block_t *b);
 
 // Maintenance velocity of current block
-data_t block_LA_maintenanceFeed(block_t *b);
+data_t block_LA_maintenanceFeed(const block_t *b);
 
 // Final velocity of current block
-data_t block_LA_finalFeed(block_t *b);
+data_t block_LA_finalFeed(const block_t *b);
 
 // setting fs, fm and fe for current block
 void block_LA_setKnownFeed(block_t *b);

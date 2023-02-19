@@ -34,12 +34,12 @@ static data_t cosAlpha(const block_t *b);
 // |____/ |_| |_____|_|     |_|
 // Intermediate velocities
 
-data_t block_LA_maintenanceFeed(block_t *b) {
+data_t block_LA_maintenanceFeed(const block_t *b) {
   assert(b);
   return block_actFeed(b); // [mm/min] -- calculated during PARSING
 }
 
-data_t block_LA_finalFeed(block_t *b) {
+data_t block_LA_finalFeed(const block_t *b) {
   assert(b);
   // angle > 45° OR vm,i = 0 ==> 0 speed OR if last segment ==> 0 speed
   if (cosAlpha(b) < sqrt(2) / 2 || block_actFeed(b) == 0.0 ||
@@ -51,7 +51,7 @@ data_t block_LA_finalFeed(block_t *b) {
          2.0 * cosAlpha(b); //[mm/min]
 }
 
-data_t block_LA_initialFeed(block_t *b) {
+data_t block_LA_initialFeed(const block_t *b) {
   assert(b);
   return block_prev(b) ? block_LA_finalFeed(block_prev(b))
                        : 0.0; // fs,i = fe,i-1
