@@ -162,7 +162,7 @@ program_getter(block_t *, first, first);
 program_getter(block_t *, current, current);
 program_getter(block_t *, last, last);
 program_getter(size_t, n, length);
-program_getter(data_t, path, pathDone);
+program_getter(data_t, path, pathDone); // added for LA
 
 // ADDED for Look-Ahead
 program_setter(void, path, pathDone);

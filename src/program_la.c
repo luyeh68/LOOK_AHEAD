@@ -24,7 +24,7 @@
 void program_LA_guards_G00(const program_t *p) {
   assert(p);
   block_t *b = program_first(p);
-
+  
   while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
     block_LA_setKnownFeed(b);
     block_LA_set_sisf(b);
@@ -137,8 +137,9 @@ void program_LA_totalTime_G00_G00(const program_t *p) {
   while (idx < program_length(p)) {
     block_t *current = b;
     if (block_type(b) != RAPID && block_FE(b) == 0.0) {
-      TOT += block_dt(b); Nb++;
-      
+      TOT += block_dt(b);
+      Nb++;
+
       // Loop for reshaping the velocities of blocks between 2 G00 blocks
       for (int j = 1; j < Nb; j++) {
         block_LA_reshapeFeed(b, block_FS(b), block_F(b), block_FE(b), TOT, 0);
@@ -148,15 +149,16 @@ void program_LA_totalTime_G00_G00(const program_t *p) {
 
       b = block_next(current); // we go on for the other G00 blocks if existing
       idx++;
-      Nb = 0; TOT = 0.0;
+      Nb = 0;
+      TOT = 0.0;
     } else if (block_type(b) == RAPID && block_FE(b) == 0.0) {
       b = block_next(b);
       idx++;
-    } else if(block_type(b) != RAPID && block_FE(b) != 0.0) 
-    {
+    } else if (block_type(b) != RAPID && block_FE(b) != 0.0) {
       TOT += block_dt(b);
       b = block_next(b);
-      Nb++; idx++;
+      Nb++;
+      idx++;
     }
   }
 }

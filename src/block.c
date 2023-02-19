@@ -143,7 +143,7 @@ void block_print(const block_t *b, FILE *out) {
 
 void block_set_path(const block_t *b, char *desc) // ADDED FOR LOOK AHEAD ***
 {
-  assert(b);
+  assert(b && desc);
   b->prof->path_desc = desc;
 }
 
@@ -294,7 +294,7 @@ point_t *block_interpolate(const block_t *b, data_t lambda) {
 // SETTERS =====================================================================
 
 #define block_setter(typ, par, name)                                           \
-  typ block_set_##name(const block_t *b, data_t value) {                       \
+  typ block_set_##name(block_t *b, data_t value) {                             \
     assert(b);                                                                 \
     b->par = value;                                                            \
   }

@@ -34,14 +34,13 @@ static data_t cosAlpha(const block_t *b);
 // |____/ |_| |_____|_|     |_|
 // Intermediate velocities
 
-data_t block_LA_maintenanceFeed(const block_t *b) {
+data_t block_LA_maintenanceFeed(block_t *b) {
   assert(b);
   return block_actFeed(b); // [mm/min] -- calculated during PARSING
 }
 
-data_t block_LA_finalFeed(const block_t *b) {
+data_t block_LA_finalFeed(block_t *b) {
   assert(b);
-
   // angle > 45° OR vm,i = 0 ==> 0 speed OR if last segment ==> 0 speed
   if (cosAlpha(b) < sqrt(2) / 2 || block_actFeed(b) == 0.0 ||
       block_type(b) == RAPID || !block_next(b))
@@ -52,20 +51,21 @@ data_t block_LA_finalFeed(const block_t *b) {
          2.0 * cosAlpha(b); //[mm/min]
 }
 
-data_t block_LA_initialFeed(const block_t *b) {
+data_t block_LA_initialFeed(block_t *b) {
   assert(b);
   return block_prev(b) ? block_LA_finalFeed(block_prev(b))
                        : 0.0; // fs,i = fe,i-1
 }
 
-void block_LA_setKnownFeed(const block_t *b) {
+void block_LA_setKnownFeed(block_t *b) {
   assert(b);
   block_set_FS(b, block_LA_initialFeed(b));
   block_set_F(b, block_LA_maintenanceFeed(b));
   block_set_FE(b, block_LA_finalFeed(b));
 }
 
-void block_LA_set_sisf(const block_t *b) {
+void block_LA_set_sisf(block_t *b) {
+  assert(b);
   // Any block can be considered indipendent in its own Reference frame:
   // si
   block_set_si(b, 0.0);
@@ -82,8 +82,8 @@ void block_LA_set_sisf(const block_t *b) {
 // ============================== 9 possible cases =============================
 
 // ============================= Accelerations =================================
-void block_LA_forwardAcc_s1s2(const block_t *b, data_t MAX_acc, data_t vm,
-                              data_t si, data_t sf) {
+void block_LA_forwardAcc_s1s2(block_t *b, data_t MAX_acc, data_t vm, data_t si,
+                              data_t sf) {
   assert(b);
   if (block_FS(b) <= vm) // Equality for dealing with pure Maintenance
     block_set_s1(b, si + (pow(vm, 2) - pow(block_FS(b), 2)) / (2.0 * MAX_acc));
@@ -93,8 +93,8 @@ void block_LA_forwardAcc_s1s2(const block_t *b, data_t MAX_acc, data_t vm,
 }
 
 // ============================= Decelerations =================================
-void block_LA_backwardDec_s1s2(const block_t *fromLast, data_t MAX_acc,
-                               data_t vm, data_t si, data_t sf) {
+void block_LA_backwardDec_s1s2(block_t *fromLast, data_t MAX_acc, data_t vm,
+                               data_t si, data_t sf) {
   assert(fromLast);
   if (block_FS(fromLast) > vm)
     block_set_s1(fromLast, si + (pow(block_FS(fromLast), 2) - pow(vm, 2)) /
@@ -105,7 +105,7 @@ void block_LA_backwardDec_s1s2(const block_t *fromLast, data_t MAX_acc,
                                     (2.0 * MAX_acc));
 }
 
-void block_LA_recompute_feed_ACC(const block_t *b, data_t MAX_acc, data_t si,
+void block_LA_recompute_feed_ACC(block_t *b, data_t MAX_acc, data_t si,
                                  data_t sf) {
   assert(b);
   data_t vf_max = sqrt(2 * MAX_acc * (sf - si) + pow(block_FS(b), 2));
@@ -119,8 +119,8 @@ void block_LA_recompute_feed_ACC(const block_t *b, data_t MAX_acc, data_t si,
   }
 }
 
-void block_LA_recompute_feed_DEC(const block_t *fromLast, data_t MAX_acc,
-                                 data_t si, data_t sf) {
+void block_LA_recompute_feed_DEC(block_t *fromLast, data_t MAX_acc, data_t si,
+                                 data_t sf) {
   assert(fromLast);
   data_t vs_max = sqrt(2 * MAX_acc * (sf - si) + pow(block_FE(fromLast), 2));
 
@@ -133,9 +133,9 @@ void block_LA_recompute_feed_DEC(const block_t *fromLast, data_t MAX_acc,
   }
 }
 
-void block_LA_recompute_s1s2(const block_t *b, data_t MAX_acc, data_t vs,
-                             data_t vm, data_t vf, data_t si, data_t s1,
-                             data_t s2, data_t sf) {
+void block_LA_recompute_s1s2(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
+                             data_t vf, data_t si, data_t s1, data_t s2,
+                             data_t sf) {
   assert(b);
   data_t vs_max = sqrt(2 * MAX_acc * (sf - si) + pow(vf, 2));
   data_t vf_max = sqrt(2 * MAX_acc * (sf - si) + pow(vs, 2));
@@ -182,8 +182,8 @@ void block_LA_recompute_s1s2(const block_t *b, data_t MAX_acc, data_t vs,
 }
 
 // useful later on to distinguish among the 9 different cases
-void block_LA_path_name(const block_t *b, data_t vs, data_t vm, data_t vf,
-                        data_t si, data_t s1, data_t s2, data_t sf) {
+void block_LA_path_name(block_t *b, data_t vs, data_t vm, data_t vf, data_t si,
+                        data_t s1, data_t s2, data_t sf) {
   assert(b);
   if (vs < vm && vm < vf && s1 != si && s2 != sf && s1 != s2)
     block_set_path(b, "A-M-A");
@@ -204,7 +204,7 @@ void block_LA_path_name(const block_t *b, data_t vs, data_t vm, data_t vf,
 // |____/ |_| |_____|_|        |_|
 // Calculate the timings [sec]
 
-void block_LA_timings(const block_t *b, data_t MAX_acc, data_t vs, data_t vm,
+void block_LA_timings(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
                       data_t vf, data_t s1, data_t s2) {
   assert(b);
   char *block_path = block_path_name(b);
@@ -251,7 +251,7 @@ void block_LA_timings(const block_t *b, data_t MAX_acc, data_t vs, data_t vm,
 // |____/ |_| |_____|_|     |____/
 // Reshaping Velocities
 
-void block_LA_reshapeFeed(const block_t *b, data_t vs, data_t vm, data_t vf,
+void block_LA_reshapeFeed(block_t *b, data_t vs, data_t vm, data_t vf,
                           data_t total, int last) {
   assert(b);
   data_t dq; // amount of time for rounding up to the next multiple of tq
@@ -289,7 +289,7 @@ void block_LA_reshapeFeed(const block_t *b, data_t vs, data_t vm, data_t vf,
   block_set_length(b, block_length(b));
 }
 
-void block_LA_reshapeAccDec(const block_t *b, data_t vs, data_t vm, data_t vf) {
+void block_LA_reshapeAccDec(block_t *b, data_t vs, data_t vm, data_t vf) {
   assert(b);
   char *block_path = block_path_name(b);
   data_t dt_1 = block_dt_1(b);

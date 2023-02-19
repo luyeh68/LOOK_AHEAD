@@ -87,22 +87,22 @@ data_t block_k(const block_t *b);
 char *block_path_name(const block_t *b);
 
 // SETTERS
-void block_set_FS(const block_t *b, data_t value);
-void block_set_F(const block_t *b, data_t value);
-void block_set_FE(const block_t *b, data_t value);
-void block_set_si(const block_t *b, data_t value);
-void block_set_s1(const block_t *b, data_t value);
-void block_set_s2(const block_t *b, data_t value);
-void block_set_sf(const block_t *b, data_t value);
-void block_set_v_star(const block_t *b, data_t value);
-void block_set_dt_1(const block_t *b, data_t value);
-void block_set_dt_m(const block_t *b, data_t value);
-void block_set_dt_2(const block_t *b, data_t value);
-void block_set_dt(const block_t *b, data_t value);
-void block_set_length(const block_t *b, data_t value);
-void block_set_acc(const block_t *b, data_t value);
-void block_set_dec(const block_t *b, data_t value);
-void block_set_k(const block_t *b, data_t value);
+void block_set_FS(block_t *b, data_t value);
+void block_set_F(block_t *b, data_t value);
+void block_set_FE(block_t *b, data_t value);
+void block_set_si(block_t *b, data_t value);
+void block_set_s1(block_t *b, data_t value);
+void block_set_s2(block_t *b, data_t value);
+void block_set_sf(block_t *b, data_t value);
+void block_set_v_star(block_t *b, data_t value);
+void block_set_dt_1(block_t *b, data_t value);
+void block_set_dt_m(block_t *b, data_t value);
+void block_set_dt_2(block_t *b, data_t value);
+void block_set_dt(block_t *b, data_t value);
+void block_set_length(block_t *b, data_t value);
+void block_set_acc(block_t *b, data_t value);
+void block_set_dec(block_t *b, data_t value);
+void block_set_k(block_t *b, data_t value);
 void block_set_path(const block_t *b, char *desc);
 
 #endif // BLOCK_H

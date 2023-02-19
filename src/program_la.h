@@ -16,7 +16,6 @@
 #define PROGRAM_LA_H
 
 #include "block_la.h"
-#include "defines.h"
 #include "program.h"
 
 // * For example:
