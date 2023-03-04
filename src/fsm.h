@@ -15,36 +15,37 @@ Functions and types have been generated with prefix "ccnc_"
 
 #ifndef FSM_H
 #define FSM_H
+#include "defines.h"
 #include "machine.h"
+#include "program.h"
 #include "block_la.h"
 #include "program_la.h"
-#include "program.h"
-#include "defines.h"
 #include <stdlib.h>
 
 // State data object
 // By default set to void; override this typedef or load the proper
 // header if you need
 typedef struct {
-  char *ini_file;           // INI file
-  char const *prog_file;    // G-code program filename
-  machine_t *machine;       // machine object
-  program_t *prog;          // program object
-  data_t t_tot;             // total program timer
-  data_t t_blk;             // block timer
-} ccnc_state_data_t;        // struct containing all info we need in the different states
+  char *ini_file;        // INI file
+  char const *prog_file; // G-code program filename
+  machine_t *machine;    // machine object
+  program_t *prog;       // program object
+  data_t t_tot;          // total program timer
+  data_t t_blk;          // block timer
+} ccnc_state_data_t;     // struct containing all info we need in the different
+                         // states
 
 // NOTHING SHALL BE CHANGED AFTER THIS LINE!
 
 // List of states
 typedef enum {
-  CCNC_STATE_INIT = 0,  
-  CCNC_STATE_IDLE,  
-  CCNC_STATE_STOP,  
-  CCNC_STATE_LOAD_BLOCK,  
-  CCNC_STATE_NO_MOTION,  
-  CCNC_STATE_RAPID_MOTION,  
-  CCNC_STATE_INTERP_MOTION,  
+  CCNC_STATE_INIT = 0,
+  CCNC_STATE_IDLE,
+  CCNC_STATE_STOP,
+  CCNC_STATE_LOAD_BLOCK,
+  CCNC_STATE_NO_MOTION,
+  CCNC_STATE_RAPID_MOTION,
+  CCNC_STATE_INTERP_MOTION,
   CCNC_NUM_STATES,
   CCNC_NO_CHANGE
 } ccnc_state_t;
@@ -63,7 +64,8 @@ typedef void transition_func_t(ccnc_state_data_t *data);
 ccnc_state_t ccnc_do_init(ccnc_state_data_t *data);
 
 // Function to be executed in state idle
-// valid return states: CCNC_NO_CHANGE, CCNC_STATE_IDLE, CCNC_STATE_LOAD_BLOCK, CCNC_STATE_STOP
+// valid return states: CCNC_NO_CHANGE, CCNC_STATE_IDLE, CCNC_STATE_LOAD_BLOCK,
+// CCNC_STATE_STOP
 ccnc_state_t ccnc_do_idle(ccnc_state_data_t *data);
 
 // Function to be executed in state stop
@@ -71,7 +73,8 @@ ccnc_state_t ccnc_do_idle(ccnc_state_data_t *data);
 ccnc_state_t ccnc_do_stop(ccnc_state_data_t *data);
 
 // Function to be executed in state load_block
-// valid return states: CCNC_STATE_IDLE, CCNC_STATE_NO_MOTION, CCNC_STATE_RAPID_MOTION, CCNC_STATE_INTERP_MOTION
+// valid return states: CCNC_STATE_IDLE, CCNC_STATE_NO_MOTION,
+// CCNC_STATE_RAPID_MOTION, CCNC_STATE_INTERP_MOTION
 ccnc_state_t ccnc_do_load_block(ccnc_state_data_t *data);
 
 // Function to be executed in state no_motion
@@ -79,17 +82,17 @@ ccnc_state_t ccnc_do_load_block(ccnc_state_data_t *data);
 ccnc_state_t ccnc_do_no_motion(ccnc_state_data_t *data);
 
 // Function to be executed in state rapid_motion
-// valid return states: CCNC_NO_CHANGE, CCNC_STATE_LOAD_BLOCK, CCNC_STATE_RAPID_MOTION
+// valid return states: CCNC_NO_CHANGE, CCNC_STATE_LOAD_BLOCK,
+// CCNC_STATE_RAPID_MOTION
 ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data);
 
 // Function to be executed in state interp_motion
-// valid return states: CCNC_NO_CHANGE, CCNC_STATE_LOAD_BLOCK, CCNC_STATE_INTERP_MOTION
+// valid return states: CCNC_NO_CHANGE, CCNC_STATE_LOAD_BLOCK,
+// CCNC_STATE_INTERP_MOTION
 ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data);
-
 
 // List of state functions
 extern state_func_t *const ccnc_state_table[CCNC_NUM_STATES];
-
 
 // Transition functions
 void ccnc_reset(ccnc_state_data_t *data);
@@ -98,9 +101,10 @@ void ccnc_begin_interp(ccnc_state_data_t *data);
 void ccnc_end_rapid(ccnc_state_data_t *data);
 
 // Table of transition functions
-extern transition_func_t *const ccnc_transition_table[CCNC_NUM_STATES][CCNC_NUM_STATES];
+extern transition_func_t
+    *const ccnc_transition_table[CCNC_NUM_STATES][CCNC_NUM_STATES];
 
 // state manager
 ccnc_state_t ccnc_run_state(ccnc_state_t cur_state, ccnc_state_data_t *data);
 
-#endif //FSM_H
+#endif // FSM_H

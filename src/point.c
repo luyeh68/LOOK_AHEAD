@@ -19,7 +19,7 @@
 // 0000 0001 => x is set (1)
 // 0000 0010 => y is set (2)
 // 0000 0100 => z is set (4)
-// 0000 0111 => xyz set (7)
+// 0000 0111 => xyz set  (7)
 typedef struct point {
   data_t x, y, z;
   uint8_t s;

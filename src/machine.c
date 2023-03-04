@@ -95,9 +95,9 @@ machine_t *machine_new(const char *ini_path) {
     m->max_error = 0.005;
     m->tq = 0.005;
     m->zero = point_new();
-    point_set_xyz(m->zero, 0, 0, 0);
+    point_set_xyz(m->zero, 0.0, 0.0, 0.0);
     m->offset = point_new();
-    point_set_xyz(m->offset, 0, 0, 0);
+    point_set_xyz(m->offset, 0.0, 0.0, 0.0);
 
     strcpy(m->broker_address, "localhost");
     m->broker_port = 1883;
