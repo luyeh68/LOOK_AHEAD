@@ -16,6 +16,7 @@
 #define BLOCK_LA_H
 
 #include "block.h"
+#include "defines.h"
 
 // ============================= ALGORITHMS ====================================
 // Initial velocity of current block
@@ -37,12 +38,12 @@ void block_LA_set_sisf(block_t *b);
 void block_LA_forwardAcc_s1s2(block_t *b, data_t MAX_acc, data_t vm, data_t si,
                               data_t sf);
 
-void block_LA_backwardDec_s1s2(block_t *b, data_t MAX_acc, data_t vm, data_t si,
-                               data_t sf);
+void block_LA_backwardDec_s1s2(block_t *fromLast, data_t MAX_acc, data_t vm,
+                               data_t si, data_t sf);
 
 void block_LA_recompute_feed_ACC(block_t *b, data_t MAX_acc, data_t si,
                                  data_t sf);
-void block_LA_recompute_feed_DEC(block_t *b, data_t MAX_acc, data_t si,
+void block_LA_recompute_feed_DEC(block_t *fromLast, data_t MAX_acc, data_t si,
                                  data_t sf);
 
 void block_LA_recompute_s1s2(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
@@ -64,7 +65,7 @@ void block_LA_reshapeFeed(block_t *b, data_t vs, data_t vm, data_t vf,
 void block_LA_reshapeAccDec(block_t *b, data_t vs, data_t vm, data_t vf);
 
 // Calculate lambda function to be used when doing Interpolation (in fsm.c)
-data_t block_lambda_LA(const block_t *b, data_t vs, data_t vm, data_t vf,
+data_t block_lambda_LA(const block_t *b, data_t fs, data_t f, data_t fe,
                        data_t t, data_t *v);
 
 #endif // BLOCK_LA_H

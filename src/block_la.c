@@ -12,7 +12,6 @@
 // Implement here block-related functions for look-ahead
 
 #include "block_la.h"
-#include <ctype.h>
 
 //  _   _                 _____          _
 // | \ | | _____      __ |  ___|__  __ _| |_ _   _ _ __ ___  ___
@@ -41,9 +40,11 @@ data_t block_LA_maintenanceFeed(const block_t *b) {
 
 data_t block_LA_finalFeed(const block_t *b) {
   assert(b);
-  // angle > 45° OR vm,i = 0 ==> 0 speed OR if last segment ==> 0 speed
-  if (cosAlpha(b) < sqrt(2) / 2 || block_actFeed(b) == 0.0 ||
-      block_type(b) == RAPID || !block_next(b))
+  // angle > 45° (cosAlpha < sqrt(2) / 2)) OR vm,i = 0 ==> 0 speed OR if last
+  // segment ==> 0 speed
+
+  if (block_type(b) == RAPID || block_actFeed(b) == 0.0 ||
+      cosAlpha(b) < sqrt(2) / 2)
     return 0.0;
 
   return (block_LA_maintenanceFeed(b) +
@@ -256,7 +257,6 @@ void block_LA_reshapeFeed(block_t *b, data_t vs, data_t vm, data_t vf,
   assert(b);
   data_t dq; // amount of time for rounding up to the next multiple of tq
   char *block_path = block_path_name(b);
-
   data_t t_star = quantize_LA(total, machine_tq(block_machine(b)), &dq);
   data_t k = t_star / total;
 
@@ -335,7 +335,7 @@ data_t block_lambda_LA(const block_t *b, data_t fs, data_t f, data_t fe,
   data_t dt_m = block_dt_m(b);
   data_t dt_2 = block_dt_2(b);
 
-  // deal also with the cases for whick fm is not reached
+  // deal also with the cases for which we cannot reach fm
   if (strcmp(block_path, "A-D") == 0 || strcmp(block_path, "D-A") == 0)
     f = block_v_star(b) / 60;
 
@@ -397,44 +397,33 @@ static data_t cosAlpha(const block_t *b) {
   data_t cos_alpha = 0.0;
   point_t *p1 = point_zero(b);
   point_t *p2 = block_target(b);
-  point_t *p3 = block_target(block_next(b));
+
   point_t *center = block_center(b);
-  point_t *center_next = block_center(block_next(b));
 
   data_t v1_lin = point_dist(p1, p2);
-  data_t v2_lin = point_dist(p2, p3);
   data_t v1_arc = block_r(b);
-  data_t v2_arc = block_r(block_next(b));
 
-  // LINEAR BLOCK -- LINEAR BLOCK
-  if (block_type(b) == LINE && block_type(block_next(b)) == LINE)
-    cos_alpha = dot_product(p1, p2, p3) / (fabs(v1_lin) * fabs(v2_lin));
+  if (block_next(b)) // if the last block exist
+  {
+    block_t *nxt = block_next(b);
+    point_t *p3 = block_target(nxt);
+    data_t v2_lin = point_dist(p2, p3);
+    point_t *center_next = block_center(nxt);
+    data_t v2_arc = block_r(nxt);
 
-  // ARC_CW or ARC_CCW BLOCK -- LINEAR BLOCK
-  else if ((block_type(b) == ARC_CW || block_type(b) == ARC_CCW) &&
-           block_type(block_next(b)) == LINE) {
-    data_t dot = dot_product(center, p2, p3);
-    data_t beta = acos(dot / (fabs(v1_arc) * fabs(v2_lin))); // [rad]
-    cos_alpha = cos(M_PI / 2.0 - beta); // r is always orthogonal to a
-                                        // trajectory
+    // LINEAR BLOCK -- LINEAR BLOCK
+    if (block_type(b) == LINE && block_type(nxt) == LINE)
+      cos_alpha = dot_product(p1, p2, p3) / (fabs(v1_lin) * fabs(v2_lin));
+
+    // ARC_CW -- LINEAR BLOCK
+    else if (block_type(b) == ARC_CW && block_type(nxt) == LINE)
+      cos_alpha = dot_product(center, p2, p3) / (fabs(v1_arc) * fabs(v2_lin));
+
+    // LINEAR BLOCK -- ARC_CW BLOCK
+    else if (block_type(b) == LINE && block_type(nxt) == ARC_CW)
+      cos_alpha =
+          dot_product(p1, p2, center_next) / (fabs(v1_lin) * fabs(v2_arc));
   }
 
-  // LINEAR BLOCK -- ARC_CW or ARC_CCW BLOCK
-  else if (block_type(b) == LINE && (block_type(block_next(b)) == ARC_CW ||
-                                     block_type(block_next(b)) == ARC_CCW)) {
-    data_t dot = dot_product(p1, p2, center_next);
-    data_t beta = acos(dot / (fabs(v1_lin) * fabs(v2_arc))); // [rad]
-    cos_alpha = cos(M_PI / 2.0 - beta); // r is always orthogonal to a
-                                        // trajectory
-  }
-
-  // all 4 combinations of ARC_CW and ARC_CCW blocks
-  else if ((block_type(b) == ARC_CW && block_type(block_next(b)) == ARC_CCW) ||
-           (block_type(b) == ARC_CCW && block_type(block_next(b)) == ARC_CW) ||
-           (block_type(b) == ARC_CW && block_type(block_next(b)) == ARC_CW) ||
-           (block_type(b) == ARC_CCW && block_type(block_next(b)) == ARC_CCW)) {
-    cos_alpha =
-        dot_product(center, p2, center_next) / (fabs(v1_arc) * fabs(v2_arc));
-  }
   return cos_alpha;
 }
