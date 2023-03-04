@@ -9,8 +9,8 @@
 #ifndef PROGRAM_H
 #define PROGRAM_H
 
-#include "block.h"
 #include "defines.h"
+#include "block.h"
 #include "machine.h"
 
 //   _____

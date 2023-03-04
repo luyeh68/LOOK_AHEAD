@@ -24,10 +24,12 @@
 void program_LA_guards_G00(const program_t *p) {
   assert(p);
   block_t *b = program_first(p);
-  
-  while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
+
+  while (b) {
+    if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
+      block_LA_set_sisf(b);
+
     block_LA_setKnownFeed(b);
-    block_LA_set_sisf(b);
     b = block_next(b);
   }
 }
@@ -38,8 +40,9 @@ void program_LA_s1s2_ACC(const program_t *p, data_t MAX_acc, data_t si) {
   block_t *b = program_first(p);
 
   // calculating s1 and s2 with the constraint of only ACCELERATION
-  while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_forwardAcc_s1s2(b, MAX_acc, block_F(b), si, block_sf(b));
+  while (b) {
+    if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
+      block_LA_forwardAcc_s1s2(b, MAX_acc, block_F(b), si, block_sf(b));
     b = block_next(b);
   }
 }
@@ -50,8 +53,9 @@ void program_LA_s1s2_DEC(const program_t *p, data_t MAX_acc, data_t si) {
   block_t *b = program_last(p);
 
   // calculating s1 and s2 with the constraint of only DECELERATION
-  while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_backwardDec_s1s2(b, MAX_acc, block_F(b), si, block_sf(b));
+  while (b) {
+    if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
+      block_LA_backwardDec_s1s2(b, MAX_acc, block_F(b), si, block_sf(b));
     b = block_prev(b);
   }
 }
@@ -61,9 +65,10 @@ void program_LA_s1s2_ordering(const program_t *p, data_t MAX_acc, data_t si) {
 
   block_t *b = program_first(p);
 
-  while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_recompute_s1s2(b, MAX_acc, block_FS(b), block_F(b), block_FE(b),
-                            si, block_s1(b), block_s2(b), block_sf(b));
+  while (b) {
+    if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
+      block_LA_recompute_s1s2(b, MAX_acc, block_FS(b), block_F(b), block_FE(b),
+                              si, block_s1(b), block_s2(b), block_sf(b));
     b = block_next(b);
   }
 }
@@ -74,8 +79,9 @@ void program_LA_feed_ACC(const program_t *p, data_t MAX_acc, data_t si) {
   block_t *b = program_first(p);
 
   // calculating admissible velocities with the constraint of only ACCELERATION
-  while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_recompute_feed_ACC(b, MAX_acc, si, block_sf(b));
+  while (b) {
+    if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
+      block_LA_recompute_feed_ACC(b, MAX_acc, si, block_sf(b));
     b = block_next(b);
   }
 }
@@ -86,8 +92,9 @@ void program_LA_feed_DEC(const program_t *p, data_t MAX_acc, data_t si) {
   block_t *b = program_last(p);
 
   // calculating admissible velocities with the constraint of only DECELERATION
-  while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_recompute_feed_DEC(b, MAX_acc, si, block_sf(b));
+  while (b) {
+    if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
+      block_LA_recompute_feed_DEC(b, MAX_acc, si, block_sf(b));
     b = block_prev(b);
   }
 }
@@ -97,9 +104,10 @@ void program_LA_timer(const program_t *p, data_t MAX_acc) {
 
   block_t *b = program_first(p);
 
-  while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_timings(b, MAX_acc, block_FS(b), block_F(b), block_FE(b),
-                     block_s1(b), block_s2(b));
+  while (b) {
+    if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
+      block_LA_timings(b, MAX_acc, block_FS(b), block_F(b), block_FE(b),
+                       block_s1(b), block_s2(b));
     b = block_next(b);
   }
 }
@@ -109,9 +117,10 @@ void program_LA_set_path_name(const program_t *p, data_t si) {
 
   block_t *b = program_first(p);
 
-  while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_path_name(b, block_FS(b), block_F(b), block_FE(b), si, block_s1(b),
-                       block_s2(b), block_sf(b));
+  while (b) {
+    if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
+      block_LA_path_name(b, block_FS(b), block_F(b), block_FE(b), si,
+                         block_s1(b), block_s2(b), block_sf(b));
     b = block_next(b);
   }
 }
@@ -121,8 +130,9 @@ void program_LA_correct_ACC_DEC(const program_t *p) {
 
   block_t *b = program_first(p);
 
-  while (b && (block_type(b) > RAPID && block_type(b) < NO_MOTION)) {
-    block_LA_reshapeAccDec(b, block_FS(b), block_F(b), block_FE(b));
+  while (b) {
+    if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
+      block_LA_reshapeAccDec(b, block_FS(b), block_F(b), block_FE(b));
     b = block_next(b);
   }
 }
@@ -179,16 +189,19 @@ void program_LA_execution(const program_t *p, machine_t *cfg) {
   // *** Recomputation of admissible velocities (unfeasible final or initial
   // velocities) and then of s1, s2 for each block ***
   program_LA_feed_ACC(p, MAX_acc, si);
+
   //                  ||
   //                  ||
   //                  \/
   // ----- Possible change of fs, fe -----
   program_LA_feed_DEC(p, MAX_acc, si);
+
   //                  ||
   //                  ||
   //                  \/
   // ----- Possible change of fs, fe -----
   program_LA_s1s2_ACC(p, MAX_acc, si);
+
   //                  ||
   //                  ||
   //                  \/
@@ -218,11 +231,12 @@ void program_LA_execution(const program_t *p, machine_t *cfg) {
   // ========================== 5° Step ====================================
   // ***                      Reshaping for D.T.                         ***
   program_LA_totalTime_G00_G00(p);
+
   //                                   ||
   //                                   ||
   //                                   \/
   // ----- Change of fs, fm, fe and of v_star (if it's A-D or D-A) -----
 
-  // set rescaled acceleration and decelaration
+  // set rescaled acceleration and deceleration
   program_LA_correct_ACC_DEC(p);
 }

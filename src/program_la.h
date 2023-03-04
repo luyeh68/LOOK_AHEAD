@@ -15,6 +15,7 @@
 #ifndef PROGRAM_LA_H
 #define PROGRAM_LA_H
 
+#include "defines.h"
 #include "block_la.h"
 #include "program.h"
 
