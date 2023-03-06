@@ -46,7 +46,7 @@ void block_LA_recompute_feed_ACC(block_t *b, data_t MAX_acc, data_t si,
 void block_LA_recompute_feed_DEC(block_t *fromLast, data_t MAX_acc, data_t si,
                                  data_t sf);
 
-void block_LA_recompute_s1s2(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
+void block_LA_compute_s1s2(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
                              data_t vf, data_t si, data_t s1, data_t s2,
                              data_t sf);
 // =============================================================================
@@ -60,7 +60,7 @@ void block_LA_timings(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
 
 // Rescaling velocities and accelerations - decelerations
 void block_LA_reshapeFeed(block_t *b, data_t vs, data_t vm, data_t vf,
-                          data_t total, int last);
+                          data_t total, int first);
 
 void block_LA_reshapeAccDec(block_t *b, data_t vs, data_t vm, data_t vf);
 

@@ -44,7 +44,7 @@ data_t block_LA_finalFeed(const block_t *b) {
   // segment ==> 0 speed
 
   if (block_type(b) == RAPID || block_actFeed(b) == 0.0 ||
-      cosAlpha(b) < sqrt(2) / 2)
+      cosAlpha(b) < sqrt(2) / 2.0)
     return 0.0;
 
   return (block_LA_maintenanceFeed(b) +
@@ -54,8 +54,7 @@ data_t block_LA_finalFeed(const block_t *b) {
 
 data_t block_LA_initialFeed(const block_t *b) {
   assert(b);
-  return block_prev(b) ? block_LA_finalFeed(block_prev(b))
-                       : 0.0; // fs,i = fe,i-1
+  return block_prev(b) ? block_FE(block_prev(b)) : 0.0; // fs,i = fe,i-1
 }
 
 void block_LA_setKnownFeed(block_t *b) {
@@ -134,16 +133,16 @@ void block_LA_recompute_feed_DEC(block_t *fromLast, data_t MAX_acc, data_t si,
   }
 }
 
-void block_LA_recompute_s1s2(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
-                             data_t vf, data_t si, data_t s1, data_t s2,
-                             data_t sf) {
+void block_LA_compute_s1s2(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
+                           data_t vf, data_t si, data_t s1, data_t s2,
+                           data_t sf) {
   assert(b);
   data_t vs_max = sqrt(2 * MAX_acc * (sf - si) + pow(vf, 2));
   data_t vf_max = sqrt(2 * MAX_acc * (sf - si) + pow(vs, 2));
   data_t s_star_AD =
-      (pow(vf, 2) - pow(vs, 2) + 2 * MAX_acc * (si + sf)) / (4 * MAX_acc);
+      (pow(vf, 2) - pow(vs, 2) + 2 * MAX_acc * (si + sf)) / (4.0 * MAX_acc);
   data_t s_star_DA =
-      (pow(vs, 2) - pow(vf, 2) + 2 * MAX_acc * (si + sf)) / (4 * MAX_acc);
+      (pow(vs, 2) - pow(vf, 2) + 2 * MAX_acc * (si + sf)) / (4.0 * MAX_acc);
 
   // deal also with the case of not being able to reach fm when Accelerating !
   if (vf_max == vf) {
@@ -153,14 +152,6 @@ void block_LA_recompute_s1s2(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
       block_set_path(b, "A-!M");
     } else
       block_set_path(b, "A");
-  }
-
-  // A-D
-  else if (vs < vm && vf < vm && s2 <= s1) {
-    block_set_s1(b, s_star_AD);
-    block_set_s2(b, s_star_AD);
-    block_set_v_star(b, sqrt(pow(vs, 2) + 2 * MAX_acc * (block_s1(b) - si)));
-    block_set_path(b, "A-D");
   }
 
   // deal also with the case of not being able to reach fm when Decelerating !
@@ -173,11 +164,19 @@ void block_LA_recompute_s1s2(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
       block_set_path(b, "D");
   }
 
+  // A-D
+  else if (vs < vm && vf < vm && s2 <= s1) {
+    block_set_s1(b, s_star_AD);
+    block_set_s2(b, s_star_AD);
+    block_set_v_star(b, sqrt(pow(vs, 2) + 2 * MAX_acc * (block_s1(b) - si)));
+    block_set_path(b, "A-D");
+  }
+
   // D-A
   else if (vs > vm && vm < vf && s2 <= s1) {
     block_set_s1(b, s_star_DA);
     block_set_s2(b, s_star_DA);
-    block_set_v_star(b, sqrt(pow(vs, 2) - 2 * MAX_acc * (block_s1(b)) - si));
+    block_set_v_star(b, sqrt(pow(vs, 2) - 2 * MAX_acc * (block_s1(b) - si)));
     block_set_path(b, "D-A");
   }
 }
@@ -235,9 +234,9 @@ void block_LA_timings(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
 
   // from [min] to [sec]
   // set calculated values in block velocity profile object
-  dt_1 *= 60;
-  dt_m *= 60;
-  dt_2 *= 60;
+  dt_1 *= 60.0;
+  dt_m *= 60.0;
+  dt_2 *= 60.0;
 
   block_set_dt_1(b, dt_1);
   block_set_dt_m(b, dt_m);
@@ -253,7 +252,7 @@ void block_LA_timings(block_t *b, data_t MAX_acc, data_t vs, data_t vm,
 // Reshaping Velocities
 
 void block_LA_reshapeFeed(block_t *b, data_t vs, data_t vm, data_t vf,
-                          data_t total, int last) {
+                          data_t total, int first) {
   assert(b);
   data_t dq; // amount of time for rounding up to the next multiple of tq
   char *block_path = block_path_name(b);
@@ -269,7 +268,7 @@ void block_LA_reshapeFeed(block_t *b, data_t vs, data_t vm, data_t vf,
     block_set_v_star(b, block_v_star(b) / k);
 
   // adding dq to the time of the portion of the LAST block between 2 G00 blocks
-  if (last) {
+  if (first) {
     if (strcmp(block_path, "A") == 0 || strcmp(block_path, "D") == 0 ||
         strcmp(block_path, "A-!M") == 0 || strcmp(block_path, "D-!M") == 0)
       block_set_dt_1(b, block_dt_1(b) + dq);
@@ -312,8 +311,8 @@ void block_LA_reshapeAccDec(block_t *b, data_t vs, data_t vm, data_t vf) {
     a = (vf - vs) / dt_1;
 
   // actual acceleration and deceleration ([mm/s^2])
-  block_set_acc(b, a / 60);
-  block_set_acc(b, d / 60);
+  block_set_acc(b, a / 60.0);
+  block_set_dec(b, d / 60.0);
 }
 
 //  ____ _____ _____ ____     __
@@ -337,7 +336,7 @@ data_t block_lambda_LA(const block_t *b, data_t fs, data_t f, data_t fe,
 
   // deal also with the cases for which we cannot reach fm
   if (strcmp(block_path, "A-D") == 0 || strcmp(block_path, "D-A") == 0)
-    f = block_v_star(b) / 60;
+    f = block_v_star(b) / 60.0;
 
   if (t < 0.0)
     *v = 0.0;
@@ -397,9 +396,7 @@ static data_t cosAlpha(const block_t *b) {
   data_t cos_alpha = 0.0;
   point_t *p1 = point_zero(b);
   point_t *p2 = block_target(b);
-
   point_t *center = block_center(b);
-
   data_t v1_lin = point_dist(p1, p2);
   data_t v1_arc = block_r(b);
 
