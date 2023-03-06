@@ -118,12 +118,15 @@ ccnc_state_t ccnc_do_init(ccnc_state_data_t *data) {
     next_state = CCNC_STATE_STOP;
     goto next_state;
   }
+
   // if available, calculate here the look-ahead
+  program_LA_execution(data->prog, data->machine);
 
   // print G-code file
   eprintf("Parsed the program %s\n", data->prog_file);
   program_print(data->prog, stderr);
 
+  // setting the initial working point of the tool
   sp = machine_setpoint(data->machine);
   zero = machine_zero(data->machine);
   point_set_x(sp, point_x(zero));
@@ -214,12 +217,12 @@ ccnc_state_t ccnc_do_stop(ccnc_state_data_t *data) {
 
   eprintf("Clean up ...");
   signal(SIGINT, SIG_DFL); // stop execution when getting SIGINT (ctrl+C)
-  
+
   if (data->machine) {
     machine_disconnect(data->machine);
     machine_free(data->machine);
   }
-  
+
   if (data->prog) {
     program_free(data->prog);
   }
@@ -245,14 +248,14 @@ ccnc_state_t ccnc_do_load_block(ccnc_state_data_t *data) {
   // * load next block
 
   block_t *b = program_next(data->prog);
-  if (!b) // if last block, we transition back to IDLE 
+  if (!b) // if last block, we transition back to IDLE
   {
     next_state = CCNC_STATE_IDLE;
     goto next_state;
   }
-  
+
   block_print(b, stderr);
-  
+
   switch (block_type(b)) {
   case NO_MOTION:
     next_state = CCNC_STATE_NO_MOTION;
@@ -289,6 +292,9 @@ next_state:
 ccnc_state_t ccnc_do_no_motion(ccnc_state_data_t *data) {
   ccnc_state_t next_state = CCNC_STATE_LOAD_BLOCK;
 
+  // Steps:
+  // * print block command
+
   switch (next_state) {
   case CCNC_STATE_LOAD_BLOCK:
     break;
@@ -315,12 +321,12 @@ ccnc_state_t ccnc_do_rapid_motion(ccnc_state_data_t *data) {
   data->t_tot += tq;
 
   // TRICK: for this to work it expects to receive from machine tool simulator
-  // the actual ERROR (if no machine attached we will wait forever because the
-  // error won't become 0 or small enough)
+  // the actual ERROR (if no machine is attached we will wait forever because
+  // the error won't become 0 or small enough)
 
   // rapid motion finished
   if (machine_error(data->machine) < machine_max_error(data->machine)) {
-    next_state = CCNC_STATE_LOAD_BLOCK; 
+    next_state = CCNC_STATE_LOAD_BLOCK;
   }
 
   // CTRL+C pressed --> exiting from rapid motion
@@ -355,6 +361,9 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
   block_t *b = program_current(data->prog);
   point_t *sp;
 
+  data_t travel = 0.0;
+  block_t *iterator = program_first(data->prog);
+
   // Steps:
   // * calculate lambda
   // * interpolate position
@@ -369,17 +378,45 @@ ccnc_state_t ccnc_do_interp_motion(ccnc_state_data_t *data) {
     goto next_block;
   }
 
-  lambda = block_lambda(b, data->t_blk, &feed);
+  // lambda = block_lambda(b, data->t_blk, &feed);
+
+  // FOR LOOK AHEAD --> velocities have U.o.M [mm/s]
+  lambda = block_lambda_LA(b, block_FS(b) / 60.0, block_F(b) / 60.0,
+                           block_FE(b) / 60.0, data->t_blk, &feed);
+
+  // Adding the length of the blocks to compute the path profile done computed
+  // so far
+  // For blocks after the first we keep adding block_length(b) until we reach
+  // the current block under execution
+
+  while (iterator != b) {
+    travel += block_length(iterator);
+    iterator = block_next(iterator);
+  }
+  // computing the total distance travelled so far as the path of the previous
+  // blocks + space computed by the current block
+  program_set_pathDone(data->prog, travel + lambda * block_length(b));
+
   sp = block_interpolate(b, lambda);
   if (!sp) {
     next_state = CCNC_STATE_LOAD_BLOCK;
     goto next_block;
   }
 
-  printf("%lu,%f,%f,%f,%f,%f,%f,%f,%f\n", block_n(b), data->t_tot, data->t_blk,
-         lambda, lambda * block_length(b), feed, point_x(sp), point_y(sp),
-         point_z(sp));
-  
+  /*printf("%lu,%f,%f,%f,%f,%f,%f,%f,%f\n", block_n(b), data->t_tot,
+     data->t_blk, lambda, lambda * block_length(b), feed, point_x(sp),
+     point_y(sp), point_z(sp));*/
+
+  // for printing values in CSV and also as a check for each and every block
+  printf("%lu,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,"
+         "%f,%s\n",
+         block_n(b), data->t_tot, data->t_blk, lambda, lambda * block_length(b),
+         block_s1(b), block_s2(b), block_dt_1(b), block_dt_m(b), block_dt_2(b),
+         block_dt(b), block_acc(b), block_dec(b), block_FS(b), block_F(b),
+         block_FE(b), feed, block_length(b), block_k(b), point_x(sp),
+         point_y(sp), point_z(sp), program_pathDone(data->prog),
+         block_path_name(b));
+
   machine_sync(data->machine, 0); // synchronize with machine simulator
 
 next_block:
@@ -418,7 +455,10 @@ void ccnc_reset(ccnc_state_data_t *data) {
   // Steps:
   // * reset both block timers
   data->t_blk = data->t_tot = 0.0;
-  printf("n,t_tot,t_blk,lambda,s,feed,x,y,z\n");
+
+  // printf("n,t_tot,t_blk,lambda,s,feed,x,y,z\n");
+  printf("n,timeSpan,t_blk,lambda,s,s1,s2,dt1,dtm,dt2,dt,a,d,fs,fm,fe,feed,l,k,"
+         "X,Y,Z,travel,path_desc\n");
 }
 
 // This function is called in 1 transition:
@@ -431,7 +471,8 @@ void ccnc_begin_rapid(ccnc_state_data_t *data) {
   // Steps:
   // * reset block timer
   // * set final position as set point and use machine_sync
-  // * call machine_listen_start(): enabling the subscription to MQTT topic msgs (c-cnc/status/#) published by machine simulator
+  // * call machine_listen_start(): enabling the subscription to MQTT topic msgs
+  // (c-cnc/status/#) published by machine simulator
 
   machine_listen_start(data->machine);
   data->t_blk = 0.0;
