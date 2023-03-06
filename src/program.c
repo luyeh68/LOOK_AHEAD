@@ -20,7 +20,7 @@ typedef struct program {
   FILE *file;                      // file handle
   block_t *first, *last, *current; // block pointers
   size_t n;                        // total number of blocks
-  data_t path;                     // path profile (LA) - current program pose
+  data_t path;                     // path done (LA) - current program pose
 } program_t;
 
 //   _____                 _   _

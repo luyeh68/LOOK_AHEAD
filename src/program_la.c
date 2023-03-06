@@ -67,8 +67,8 @@ void program_LA_s1s2_ordering(const program_t *p, data_t MAX_acc, data_t si) {
 
   while (b) {
     if (block_type(b) > RAPID && block_type(b) < NO_MOTION)
-      block_LA_recompute_s1s2(b, MAX_acc, block_FS(b), block_F(b), block_FE(b),
-                              si, block_s1(b), block_s2(b), block_sf(b));
+      block_LA_compute_s1s2(b, MAX_acc, block_FS(b), block_F(b), block_FE(b),
+                            si, block_s1(b), block_s2(b), block_sf(b));
     b = block_next(b);
   }
 }
